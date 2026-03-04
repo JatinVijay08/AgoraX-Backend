@@ -2,8 +2,10 @@ package com.jatin.forum.controller;
 
 import com.jatin.forum.dto.CommentResponse;
 import com.jatin.forum.dto.CreateCommentRequest;
+import com.jatin.forum.dto.VoteRequest;
 import com.jatin.forum.entity.Comment;
 import com.jatin.forum.service.CommentService;
+import com.jatin.forum.service.CommentVoteService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,13 +15,16 @@ import org.springframework.web.bind.annotation.*;
 public class CommentController {
 
     private final CommentService commentService;
+    private final CommentVoteService commentVoteService;
 
-    public CommentController(CommentService commentService) {
+
+    public CommentController(CommentService commentService, CommentVoteService commentVoteService) {
         this.commentService = commentService;
+        this.commentVoteService = commentVoteService;
     }
 
     @PostMapping("/post/{postId}")
-    public Comment addComment(@PathVariable("postId") Long postId, @RequestBody CreateCommentRequest createCommentRequest) {
+    public CommentResponse addComment(@PathVariable("postId") Long postId, @RequestBody CreateCommentRequest createCommentRequest) {
         return commentService.CreateComment(postId, createCommentRequest);
 
     }
@@ -32,16 +37,14 @@ public class CommentController {
     @GetMapping("/post/{postId}")
     public Page<CommentResponse> getCommentByPostId(@PathVariable("postId") Long postId,@RequestParam(defaultValue = "0") Integer page, @RequestParam(defaultValue = "10") Integer size) {
 
-        Page<Comment> comment =  commentService.getCommentByPostId(postId, page, size);
-         return comment.map(comment1 -> new CommentResponse(
-                 comment1.getUser().getUsername(),
-                comment1.getId(),
-                comment1.getContent(),
-                comment1.getUser().getEmail(),
-                comment1.getCreatedAt(),
-                 comment1.getParentComment()
-        ));
+        return commentService.getCommentByPostId(postId, page, size);
 
+
+    }
+
+    @PostMapping("{commentId}/votes")
+    public CommentResponse voteOnComment(@PathVariable long commentId, @RequestBody VoteRequest voteRequest) {
+    return  commentVoteService.voteOnComment(commentId,voteRequest);
     }
 
 }

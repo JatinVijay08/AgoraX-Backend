@@ -1,10 +1,10 @@
 package com.jatin.forum.service;
 
+import com.jatin.forum.dto.CommentResponse;
 import com.jatin.forum.dto.CreateCommentRequest;
-import com.jatin.forum.entity.Comment;
-import com.jatin.forum.entity.Post;
-import com.jatin.forum.entity.User;
+import com.jatin.forum.entity.*;
 import com.jatin.forum.repository.CommentRepo;
+import com.jatin.forum.repository.CommentVoteRepo;
 import com.jatin.forum.repository.PostRepo;
 import com.jatin.forum.repository.UserRepo;
 import org.springframework.data.domain.Page;
@@ -22,14 +22,16 @@ public class CommentService {
 
     private final PostRepo postRepo;
     private final CommentRepo commentRepo;
+    private final CommentVoteRepo commentVoteRepo;
     private final UserRepo userRepo;
-    public CommentService(PostRepo postRepo, CommentRepo commentRepo, UserRepo userRepo) {
+    public CommentService(PostRepo postRepo, CommentRepo commentRepo, CommentVoteRepo commentVoteRepo, UserRepo userRepo) {
         this.postRepo = postRepo;
         this.commentRepo = commentRepo;
+        this.commentVoteRepo = commentVoteRepo;
         this.userRepo = userRepo;
     }
 
-    public Comment CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
+    public CommentResponse CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User user = userRepo.findByEmail(email);
@@ -47,7 +49,8 @@ public class CommentService {
             Comment parent = commentRepo.findById(createCommentRequest.parentId()).orElseThrow(()->new RuntimeException("Parent comment not found"));
             comment.setParentComment(parent);
         }
-       return commentRepo.save(comment);
+        commentRepo.save(comment);
+        return maptoCommentResponse(comment);
     }
 
     public void deleteComment(Long commentID) {
@@ -64,9 +67,32 @@ public class CommentService {
         commentRepo.delete(comment.get());
     }
 
-    public Page<Comment> getCommentByPostId(Long postId, int page,int size) {
+    public Page<CommentResponse> getCommentByPostId(Long postId, int page,int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC,"createdAt"));
-        return commentRepo.findByPostId(postId, pageable);
+        Page<Comment> comments =  commentRepo.findByPostId(postId, pageable);
+        return comments.map(this::maptoCommentResponse);
+
+    }
+
+    public CommentResponse maptoCommentResponse(Comment comment) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userRepo.findByEmail(email);
+        long upvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.upvote);
+        long downvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.downvote);
+
+        long voteCount = upvotes-downvotes;
+
+        Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user,comment);
+
+        Long parentCommentId = null;
+
+        if(comment.getParentComment() != null){
+            parentCommentId = comment.getParentComment().getId();
+        }
+        VoteType voteType = commentVote.map(CommentVote::getVoteType).orElse(null);
+        CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
+        return commentResponse;
     }
 
 }

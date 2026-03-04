@@ -20,4 +20,6 @@ public interface CommentRepo extends JpaRepository<Comment, Long> {
 
     @Modifying
     void deleteByPostId(Long postId);
+
+    Long id(Long id);
 }

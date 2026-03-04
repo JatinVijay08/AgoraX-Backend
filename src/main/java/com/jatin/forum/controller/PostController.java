@@ -3,7 +3,6 @@ package com.jatin.forum.controller;
 import com.jatin.forum.dto.CreatePostRequest;
 import com.jatin.forum.dto.PostResponse;
 import com.jatin.forum.dto.VoteRequest;
-import com.jatin.forum.dto.VoteResponse;
 import com.jatin.forum.service.PostService;
 import com.jatin.forum.service.VoteService;
 import jakarta.validation.Valid;
