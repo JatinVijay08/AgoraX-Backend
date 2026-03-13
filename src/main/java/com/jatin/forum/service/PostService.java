@@ -34,7 +34,15 @@ public class PostService {
     public List<PostResponse> getAllPosts(){
        return postRepo.findAll()
                .stream()
-               .map(this::mapToPostResponse)
+               .map(post->{
+                   long upvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.upvote);
+                   long downvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.downvote);
+
+                   long votes = upvotes-downvotes;
+                   long commentCount = commentRepo.countByPostId(post.getId());
+                   User user1 = post.getUser();
+                   return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, null);
+               })
                .toList();
 
     }
@@ -54,7 +62,13 @@ public class PostService {
 
     public PostResponse getPostById(Long id){
         Post post  = postRepo.findById(id).orElseThrow(()->new RuntimeException("post not found")) ;
-        return  mapToPostResponse(post);
+        long upvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.upvote);
+        long downvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.downvote);
+
+        long votes = upvotes-downvotes;
+        long commentCount = commentRepo.countByPostId(post.getId());
+        User user1 = post.getUser();
+        return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, null);
 
     }
 

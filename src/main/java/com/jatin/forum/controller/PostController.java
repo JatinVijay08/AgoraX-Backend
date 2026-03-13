@@ -15,7 +15,7 @@ import java.util.List;
 @RequestMapping("/api/posts")
 public class PostController {
 
-    private static PostService postService;
+    private final PostService postService;
     private final VoteService voteService;
 
     public PostController(PostService postService, VoteService voteService) {
