@@ -32,16 +32,31 @@ public class PostService {
 
 
     public List<PostResponse> getAllPosts(){
-       return postRepo.findAll()
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        String email = null;
+        User user = null;
+
+        if(authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser")){
+           email = authentication.getName();
+            user = userRepo.findByEmail(email);
+        }
+        User finalUser = user;
+        return postRepo.findAll()
                .stream()
                .map(post->{
                    long upvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.upvote);
                    long downvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.downvote);
 
+                   VoteType voteType = null;
+                   if(finalUser!=null) {
+                       voteType = postVoteRepo.findByUserAndPost(finalUser, post).map(PostVote::getVoteType).orElse(null);
+                   }
+
                    long votes = upvotes-downvotes;
                    long commentCount = commentRepo.countByPostId(post.getId());
                    User user1 = post.getUser();
-                   return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, null);
+                   return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, voteType);
                })
                .toList();
 
@@ -61,14 +76,27 @@ public class PostService {
     }
 
     public PostResponse getPostById(Long id){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        String email = null;
+        User user = null;
+        if(authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser")){
+             email = authentication.getName();
+             user = userRepo.findByEmail(email);
+        }
+
         Post post  = postRepo.findById(id).orElseThrow(()->new RuntimeException("post not found")) ;
         long upvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.upvote);
         long downvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.downvote);
+        VoteType voteType = null;
 
-        long votes = upvotes-downvotes;
+        if(user!=null) {
+            voteType = postVoteRepo.findByUserAndPost(user, post).map(PostVote::getVoteType).orElse(null);
+        }
+         long votes = upvotes-downvotes;
         long commentCount = commentRepo.countByPostId(post.getId());
         User user1 = post.getUser();
-        return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, null);
+        return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, voteType);
 
     }
 

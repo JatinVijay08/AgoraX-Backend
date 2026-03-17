@@ -70,7 +70,20 @@ public class CommentService {
     public Page<CommentResponse> getCommentByPostId(Long postId, int page,int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC,"createdAt"));
         Page<Comment> comments =  commentRepo.findByPostId(postId, pageable);
-        return comments.map(this::maptoCommentResponse);
+        return comments.map(comment->{
+            long upvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.upvote);
+            long downvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.downvote);
+
+            long voteCount = upvotes-downvotes;
+
+            Long parentCommentId = null;
+
+            if(comment.getParentComment() != null){
+                parentCommentId = comment.getParentComment().getId();
+            }
+            CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,null);
+            return commentResponse;
+        });
 
     }
 
