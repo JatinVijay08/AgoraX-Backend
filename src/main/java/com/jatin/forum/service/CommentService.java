@@ -70,18 +70,37 @@ public class CommentService {
     public Page<CommentResponse> getCommentByPostId(Long postId, int page,int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC,"createdAt"));
         Page<Comment> comments =  commentRepo.findByPostId(postId, pageable);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email;
+        if(authentication!=null && authentication.isAuthenticated() && !authentication.getName().equals("anonymousUser")) {
+            email = authentication.getName();
+        } else {
+            email = null;
+        }
         return comments.map(comment->{
             long upvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.upvote);
             long downvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.downvote);
 
             long voteCount = upvotes-downvotes;
 
+
+            VoteType voteType=null;
+
+            if(email!=null) {
+                User user = userRepo.findByEmail(email);
+                Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user,comment);
+                voteType = commentVote.map(CommentVote::getVoteType).orElse(null);
+            }
+
+
             Long parentCommentId = null;
 
             if(comment.getParentComment() != null){
                 parentCommentId = comment.getParentComment().getId();
             }
-            CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,null);
+
+
+            CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
             return commentResponse;
         });
 

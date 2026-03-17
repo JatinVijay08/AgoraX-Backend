@@ -2,6 +2,7 @@ package com.jatin.forum.config;
 
 import com.jatin.forum.JwtUtil;
 import com.jatin.forum.repository.UserRepo;
+import com.jatin.forum.security.CustomAuthenticationEntryPoint;
 import com.jatin.forum.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,7 +35,7 @@ public class SecurityConfig {
 
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,JwtAuthenticationFilter jwtAuthenticationFilter, CustomAuthenticationEntryPoint customAuthenticationEntryPoint) throws Exception {
 
         System.out.println("Security config loaded");
 
@@ -44,6 +45,7 @@ public class SecurityConfig {
                 .httpBasic(httpHeader -> httpHeader.disable())
                 .formLogin(formLogin -> formLogin.disable())
                 .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(customAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login","/api/auth/register").permitAll().requestMatchers(HttpMethod.GET,"/api/posts", "/api/posts/**","/api/comments/post/{postId}").permitAll()
                         .anyRequest().authenticated()
