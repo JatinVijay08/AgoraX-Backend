@@ -6,6 +6,9 @@ import com.jatin.forum.dto.LoginResponseDto;
 import com.jatin.forum.dto.RegisterRequest;
 import com.jatin.forum.entity.User;
 import com.jatin.forum.repository.UserRepo;
+import com.jatin.forum.exception.InvalidCredentialsException;
+import com.jatin.forum.exception.ResourceNotFoundException;
+import com.jatin.forum.exception.UserAlreadyExistsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -24,21 +27,22 @@ public class AuthService {
     }
 
     public void register(RegisterRequest registerRequest) {
+        if (userRepo.findByEmail(registerRequest.email()) != null) {
+            throw new UserAlreadyExistsException("User is already Registered with this Email");
+        }
 
         String hashedPassword = passwordEncoder.encode(registerRequest.password());
-        User user = new User(registerRequest.username(),hashedPassword,registerRequest.email()
-        );
-
+        User user = new User(registerRequest.username(), hashedPassword, registerRequest.email());
         userRepo.save(user);
     }
 
     public LoginResponseDto login(LoginRequest loginRequest) {
         User user = userRepo.findByEmail(loginRequest.email());
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new ResourceNotFoundException("User not found");
         }
         if(!passwordEncoder.matches(loginRequest.password(), user.getPassword())) {
-            throw new RuntimeException("Invalid Credentials");
+            throw new InvalidCredentialsException("Invalid Credentials");
         }
 
         String token = jwtUtil.generateToken(user);
