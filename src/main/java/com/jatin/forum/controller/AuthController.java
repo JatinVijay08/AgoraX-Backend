@@ -1,11 +1,13 @@
 package com.jatin.forum.controller;
 
 
+import com.jatin.forum.dto.GoogleAuthRequest;
 import com.jatin.forum.dto.LoginRequest;
 import com.jatin.forum.dto.LoginResponseDto;
 import com.jatin.forum.dto.RegisterRequest;
 import com.jatin.forum.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +36,20 @@ public class AuthController {
     public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequest loginRequest) {
       LoginResponseDto loginResponseDto =  authService.login(loginRequest);
        return ResponseEntity.ok(loginResponseDto);
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<LoginResponseDto> googleLogin(@Valid @RequestBody GoogleAuthRequest googleAuthRequest) {
+        try{
+            LoginResponseDto response = authService.googleLogin(googleAuthRequest.idToken());
+            return ResponseEntity.ok(response);
+        }
+        catch (RuntimeException e){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new LoginResponseDto(null,e.getMessage()));
+        }
+
+
+
     }
 
 
