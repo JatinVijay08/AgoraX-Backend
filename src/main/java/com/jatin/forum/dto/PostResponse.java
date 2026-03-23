@@ -2,6 +2,8 @@ package com.jatin.forum.dto;
 
 import com.jatin.forum.entity.VoteType;
 
+import java.time.Instant;
+
 public record PostResponse(
         String username,
         Long id,
@@ -9,5 +11,6 @@ public record PostResponse(
         String content,
         long voteCount,
         long commentCount,
-        VoteType userVote
+        VoteType userVote,
+        Instant createdAt
 ){}
