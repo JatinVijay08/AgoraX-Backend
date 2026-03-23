@@ -63,7 +63,7 @@ public class VoteService {
         long commentCount = commentRepo.countByPostId(post.get().getId());
         VoteType voteType1 = postVoteRepo.findByUserAndPost(user,post.get()).map(PostVote::getVoteType).orElse(null);
         User user1 = post.get().getUser();
-        return new PostResponse(user1.getUsername(),post.get().getId(), post.get().getTitle(), post.get().getContent(), votes, commentCount,voteType1);
+        return new PostResponse(user1.getUsername(),post.get().getId(), post.get().getTitle(), post.get().getContent(), votes, commentCount,voteType1,post.get().getCreatedAt());
 
 }
 }

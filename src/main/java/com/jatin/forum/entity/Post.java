@@ -1,10 +1,19 @@
 package com.jatin.forum.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
+
+@AllArgsConstructor
+@NoArgsConstructor
 @Entity
+@Getter
 @Table(name="posts")
 public class Post {
     @Id
@@ -17,6 +26,13 @@ public class Post {
     private String content;
 
     private Instant createdAt;
+
+    public Post(String title, String content, User user) {
+        this.title = title;
+        this.content = content;
+        this.user = user;
+        this.createdAt = Instant.now();
+    }
 
     public Long getId() {
         return id;
@@ -37,15 +53,6 @@ public class Post {
         return createdAt;
     }
 
-
-    public Post(String title, String content,User user) {
-        this.title = title;
-        this.content = content;
-        this.createdAt = Instant.now();
-        this.user = user;
-    }
-
-    protected Post() {}
 
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)

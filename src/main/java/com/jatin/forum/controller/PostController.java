@@ -1,6 +1,7 @@
 package com.jatin.forum.controller;
 
 import com.jatin.forum.dto.CreatePostRequest;
+import com.jatin.forum.dto.PostFeedResponse;
 import com.jatin.forum.dto.PostResponse;
 import com.jatin.forum.dto.VoteRequest;
 import com.jatin.forum.service.PostService;
@@ -24,8 +25,8 @@ public class PostController {
     }
 
     @GetMapping
-    public List<PostResponse> getAllPosts() {
-        return postService.getAllPosts() ;
+    public PostFeedResponse getAllPosts(@RequestParam(defaultValue = "new") String sort, @RequestParam(defaultValue="10") int page, @RequestParam(required=false) String cursor) {
+        return postService.getAllPosts(sort,page,cursor);
     }
 
     @PostMapping
