@@ -18,6 +18,7 @@ public class User {
     private Long id;
 
 
+    @Setter
     @Column(nullable=false,unique=true)
     private String username;
     @Column(nullable=true)

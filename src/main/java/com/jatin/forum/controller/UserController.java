@@ -1,12 +1,13 @@
 package com.jatin.forum.controller;
 
 import com.jatin.forum.dto.PostResponse;
+import com.jatin.forum.dto.UpdateUsernameRequest;
 import com.jatin.forum.dto.UserResponse;
 import com.jatin.forum.entity.User;
-import com.jatin.forum.repository.PostRepo;
 import com.jatin.forum.repository.UserRepo;
 import com.jatin.forum.service.PostService;
 import com.jatin.forum.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -18,35 +19,37 @@ import java.util.List;
 public class UserController {
     private final UserService userService;
     private final UserRepo userRepo;
-    private final PostRepo postRepo;
     private final PostService postService;
 
-    public UserController(UserService userService, UserRepo userRepo, PostRepo postRepo, PostService postService) {
+    public UserController(UserService userService, UserRepo userRepo, PostService postService) {
         this.userService = userService;
         this.userRepo = userRepo;
-        this.postRepo = postRepo;
         this.postService = postService;
     }
 
+    private User currentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return userRepo.findByEmail(auth.getName());
+    }
+
     @GetMapping()
-    public UserResponse getUser(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
-        return userService.findById(user.getId());
+    public UserResponse getUser() {
+        return userService.findById(currentUser().getId());
     }
 
     @GetMapping("/posts")
-    public List<PostResponse> getPosts(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
-        return userService.getPosts(user.getId());
+    public List<PostResponse> getPosts(@RequestParam(defaultValue = "new") String sort) {
+        return userService.getPostsSorted(currentUser().getId(), sort);
+    }
+
+    @PatchMapping("/username")
+    public UserResponse updateUsername(@Valid @RequestBody UpdateUsernameRequest request) {
+        return userService.updateUsername(currentUser().getId(), request);
     }
 
     @DeleteMapping("/posts/{postId}")
-    public void deletePost(@PathVariable Long postId){
-         postService.deletePostById(postId);
+    public void deletePost(@PathVariable Long postId) {
+        postService.deletePostById(postId);
     }
-
 }
+

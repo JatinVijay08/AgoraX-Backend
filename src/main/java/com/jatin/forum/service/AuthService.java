@@ -107,7 +107,7 @@ public class AuthService {
         String base = name.toLowerCase().replaceAll("\\s+", "_");
         String candidate = base;
         int i = 1;
-        while (userRepo.findByusername(candidate)){
+        while (userRepo.existsByUsername(candidate)){
             candidate = base + "_" + i++;
         }
         return candidate;
