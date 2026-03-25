@@ -1,6 +1,7 @@
 package com.jatin.forum.entity;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 
 @Entity
 @Table(name = "post_vote",uniqueConstraints = {
@@ -19,6 +20,8 @@ public class PostVote {
     @JoinColumn(name="post_id",nullable = false)
     Post post;
 
+    private Instant createdAt = Instant.now();
+
     @Enumerated(EnumType.STRING)
     private VoteType voteType;
 
@@ -35,5 +38,13 @@ public class PostVote {
     }
     public void setVoteType(VoteType voteType) {
         this.voteType = voteType;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 }

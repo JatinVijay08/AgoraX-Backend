@@ -25,8 +25,8 @@ public class PostController {
     }
 
     @GetMapping
-    public PostFeedResponse getAllPosts(@RequestParam(defaultValue = "new") String sort, @RequestParam(defaultValue="10") int page, @RequestParam(required=false) String cursor) {
-        return postService.getAllPosts(sort,page,cursor);
+    public PostFeedResponse getAllPosts(@RequestParam(defaultValue = "new") String sort, @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue = "10") int limit, @RequestParam(required=false) String cursor) {
+        return postService.getAllPosts(sort,page,limit,cursor);
     }
 
     @PostMapping

@@ -16,4 +16,7 @@ public interface PostRepo extends JpaRepository<Post, Long> {
     List<Post> findPostNew(@Param("cursor") Instant cursor, Pageable pageable);
 
     List<Post> getPostByUserId(Long id);
+
+    @Query("select p from Post p where p.createdAt > :seven")
+    List<Post> findPostRecent(@Param("seven")Instant sevenDaysAgo);
 }

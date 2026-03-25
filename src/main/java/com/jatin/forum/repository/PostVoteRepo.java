@@ -17,4 +17,6 @@ public interface PostVoteRepo extends JpaRepository<PostVote, Long> {
 
     @Modifying
     void deleteByPostId(Long postId);
+
+    long countByPostAndCreatedAtAfter(Post post, java.time.Instant createdAt);
 }

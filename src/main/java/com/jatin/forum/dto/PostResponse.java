@@ -5,7 +5,7 @@ import lombok.Builder;
 
 import java.time.Instant;
 
-@Builder
+
 public record PostResponse(
         String username,
         Long id,
@@ -14,5 +14,5 @@ public record PostResponse(
         long voteCount,
         long commentCount,
         VoteType userVote,
-        Instant createdAt
-){}
+        Instant createdAt,
+        double hotScore){}

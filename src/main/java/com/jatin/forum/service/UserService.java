@@ -22,12 +22,14 @@ public class UserService {
     private final PostRepo postRepo;
     private final PostVoteRepo postVoteRepo;
     private final CommentRepo commentRepo;
-    public UserService(UserRepo userRepo, PostRepo postRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo) {
+    private final PostService postService;
+
+    public UserService(UserRepo userRepo, PostRepo postRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, PostService postService) {
         this.userRepo = userRepo;
         this.postRepo = postRepo;
-
         this.postVoteRepo = postVoteRepo;
         this.commentRepo = commentRepo;
+        this.postService = postService;
     }
 
     public UserResponse findById(Long id) {
@@ -37,21 +39,7 @@ public class UserService {
 
 
     public List<PostResponse> getPosts(Long id) {
-        return postRepo.getPostByUserId(id).stream().map(post -> mapToPostResponse(post,id)).toList();
-    }
-
-    public PostResponse mapToPostResponse(Post post,Long id) {
-        User user = userRepo.findById(id).orElseThrow(()->new RuntimeException("User not found"));
-
-        long upvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.upvote);
-        long downvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.downvote);
-
-        long votes = upvotes-downvotes;
-        long commentCount = commentRepo.countByPostId(post.getId());
-        VoteType voteType = postVoteRepo.findByUserAndPost(user,post).map(PostVote::getVoteType).orElse(null);
-        User user1 = post.getUser();
-        return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, voteType,post.getCreatedAt());
-
+        return postRepo.getPostByUserId(id).stream().map(postService::mapToPostResponse).toList();
     }
 
     

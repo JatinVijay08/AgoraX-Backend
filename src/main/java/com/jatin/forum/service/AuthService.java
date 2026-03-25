@@ -92,7 +92,7 @@ public class AuthService {
                 .email(email)
                 .password(null)
                 .authProvider(AuthProvider.GOOGLE)
-                .username(name)
+                .username(generateUsername(name))
                 .googleId(googleId)
                 .created(Instant.now())
         .build();

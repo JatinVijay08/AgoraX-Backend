@@ -22,4 +22,6 @@ public interface CommentRepo extends JpaRepository<Comment, Long> {
     void deleteByPostId(Long postId);
 
     Long id(Long id);
+
+    long countByPostAndCreatedAtAfter(com.jatin.forum.entity.Post post, java.time.Instant createdAt);
 }

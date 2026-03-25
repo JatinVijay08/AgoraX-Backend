@@ -24,12 +24,14 @@ public class VoteService {
     private  final PostVoteRepo postVoteRepo;
     private  final UserRepo userRepo;
     private  final PostRepo postRepo;
+    private final PostService postService;
 
-    public VoteService(CommentRepo commentRepo, PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo) {
+    public VoteService(CommentRepo commentRepo, PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService) {
         this.commentRepo = commentRepo;
         this.postVoteRepo = postVoteRepo;
         this.userRepo = userRepo;
         this.postRepo = postRepo;
+        this.postService = postService;
     }
 
     public PostResponse voteOnPost(Long postId, VoteType voteType) {
@@ -55,15 +57,7 @@ public class VoteService {
            }
 
 
-        long upvotes = postVoteRepo.countByPostAndVoteType(post.get(), VoteType.upvote);
-        long downvotes = postVoteRepo.countByPostAndVoteType(post.get(), VoteType.downvote);
-
-        long votes = upvotes-downvotes;
-
-        long commentCount = commentRepo.countByPostId(post.get().getId());
-        VoteType voteType1 = postVoteRepo.findByUserAndPost(user,post.get()).map(PostVote::getVoteType).orElse(null);
-        User user1 = post.get().getUser();
-        return new PostResponse(user1.getUsername(),post.get().getId(), post.get().getTitle(), post.get().getContent(), votes, commentCount,voteType1,post.get().getCreatedAt());
+        return postService.mapToPostResponse(post.get());
 
 }
 }
