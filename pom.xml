@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.jatin</groupId>
-    <artifactId>discussion-forum-backend</artifactId>
+    <artifactId>exhale-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>discussion-forum-backend</name>
-    <description>discussion-forum-backend</description>
+    <name>exhale-backend</name>
+    <description>Discussion Platform catered to Youth of India!</description>
     <url/>
     <licenses>
         <license/>
@@ -98,7 +98,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-http5</artifactId>
+            <version>2.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.2.1</version>
+        </dependency>
 
     </dependencies>
 
