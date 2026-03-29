@@ -1,7 +1,0 @@
-package com.jatin.exhale.exception;
-
-public class UserAlreadyExistsException extends RuntimeException {
-    public UserAlreadyExistsException(String message) {
-        super(message);
-    }
-}

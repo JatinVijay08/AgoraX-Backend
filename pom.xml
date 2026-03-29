@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.jatin</groupId>
-    <artifactId>exhale-backend</artifactId>
+    <artifactId>discussion-forum-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>exhale-backend</name>
-    <description>Discussion Platform catered to Youth of India!</description>
+    <name>discussion-forum-backend</name>
+    <description>discussion-forum-backend</description>
     <url/>
     <licenses>
         <license/>
