@@ -120,7 +120,7 @@ public class PostService {
                     PostFeedResponse postFeedResponse = new PostFeedResponse(postResponses, null, hasMore);
                     String cacheStringObject = objectMapper.writeValueAsString(postFeedResponse);
                     int jitter = ThreadLocalRandom.current().nextInt(0, 30);
-                    redisTemplate.opsForValue().set(key, cacheStringObject, 2+jitter, TimeUnit.MINUTES);
+                    redisTemplate.opsForValue().set(key, cacheStringObject, 120+jitter, TimeUnit.SECONDS);
                     return postFeedResponse;
                  }
              }
@@ -147,7 +147,7 @@ public class PostService {
                      PostFeedResponse postFeedResponse = new  PostFeedResponse(postResponses, null, hasMore);
                      String cachedObjectString = objectMapper.writeValueAsString(postFeedResponse);
                      int jitter = ThreadLocalRandom.current().nextInt(0, 30);
-                     redisTemplate.opsForValue().set(key, cachedObjectString, 2+jitter, TimeUnit.MINUTES);
+                     redisTemplate.opsForValue().set(key, cachedObjectString, 120+jitter, TimeUnit.SECONDS);
                      return postFeedResponse;
                  }
 
