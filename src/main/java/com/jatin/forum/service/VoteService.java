@@ -73,15 +73,6 @@ public class VoteService {
            redisTemplate.delete("feed:trending");
            redisTemplate.opsForValue().set(key,"0",150,TimeUnit.SECONDS);
           }
-           // after the response has been registered->
-        // delete the cache as it has now become stale
-        System.out.println("VOTE REGISTERED - evicting feed cache");
-        Set<String> keys = redisTemplate.keys("feed:*");
-        System.out.println("KEYS FOUND: " + keys);
-           if(keys!=null && !keys.isEmpty()){
-               redisTemplate.delete(keys);
-               System.out.println("CACHE EVICTED");
-           }
         return postService.mapToPostResponse(post.get());
 }
 }
