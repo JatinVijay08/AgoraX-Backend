@@ -12,11 +12,13 @@ import com.jatin.forum.exception.ResourceNotFoundException;
 import com.jatin.forum.exception.UserAlreadyExistsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Map;
 
 @Service
+@Transactional
 public class AuthService {
 
 
@@ -59,6 +61,8 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(user);
+        user.setLastLoginAt(Instant.now());
+        userRepo.save(user);
         String username = user.getUsername();
         return new LoginResponseDto(token,username);
     }
@@ -80,7 +84,8 @@ public class AuthService {
 
             // if AuthProvider is google,then issue jwt
             String jwt = jwtUtil.generateToken(existingUser);
-
+            existingUser.setLastLoginAt(Instant.now());
+            userRepo.save(existingUser);
             String username = existingUser.getUsername();
             return new LoginResponseDto(jwt,username);
         }
@@ -95,6 +100,7 @@ public class AuthService {
                 .created(Instant.now())
         .build();
 
+        newUser.setLastLoginAt(Instant.now());
         userRepo.save(newUser);
 
         String jwt = jwtUtil.generateToken(newUser);

@@ -16,8 +16,8 @@ public interface PostRepo extends JpaRepository<Post, Long> {
 
     List<Post> getPostByUserId(Long id);
 
-    @Query("select p from Post p where p.createdAt > :seven")
-    List<Post> findPostRecent(@Param("seven")Instant sevenDaysAgo);
+    @Query("select p from Post p where p.createdAt > :time")
+    List<Post> findPostRecent(@Param("time")Instant time);
 
     Post findPostByMediaPublicId(String publicId);
 }

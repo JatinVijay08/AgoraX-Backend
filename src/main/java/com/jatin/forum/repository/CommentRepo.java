@@ -6,6 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.Instant;
+import java.util.List;
 
 
 public interface CommentRepo extends JpaRepository<Comment, Long> {
@@ -24,4 +28,6 @@ public interface CommentRepo extends JpaRepository<Comment, Long> {
     Long id(Long id);
 
     long countByPostAndCreatedAtAfter(com.jatin.forum.entity.Post post, java.time.Instant createdAt);
+
+    List<Comment> findCommentsByCreatedAtAfter(Instant createdAtAfter);
 }

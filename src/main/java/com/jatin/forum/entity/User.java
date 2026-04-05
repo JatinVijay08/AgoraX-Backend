@@ -31,6 +31,9 @@ public class User {
     private Instant created;
 
     @Setter
+    private Instant lastLoginAt;
+
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

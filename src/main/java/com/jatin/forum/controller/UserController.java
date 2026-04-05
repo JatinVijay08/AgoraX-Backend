@@ -33,8 +33,18 @@ public class UserController {
     }
 
     @GetMapping()
-    public UserResponse getUser() {
+    public com.jatin.forum.dto.UserProfileResponse getUser() {
         return userService.findById(currentUser().getId());
+    }
+
+    @GetMapping("/profile/{username}")
+    public com.jatin.forum.dto.UserProfileResponse getProfile(@PathVariable String username) {
+        return userService.findByUsernameProfile(username);
+    }
+
+    @GetMapping("/profile/{username}/posts")
+    public List<PostResponse> getProfilePosts(@PathVariable String username, @RequestParam(defaultValue = "new") String sort) {
+        return userService.getPostsByUsernameSorted(username, sort);
     }
 
     @GetMapping("/posts")
@@ -51,5 +61,21 @@ public class UserController {
     public void deletePost(@PathVariable Long postId) {
         postService.deletePostById(postId);
     }
+
+    @GetMapping("/recent")
+    public List<UserResponse> getUsersRecent(){
+        Long currentUserId = null;
+        try {
+            User current = currentUser();
+            if (current != null) {
+                currentUserId = current.getId();
+            }
+        } catch (Exception e) {
+            // Ignore if no current authenticated user
+        }
+        return userService.getRecentUsers(currentUserId);
+    }
+
 }
+
 
