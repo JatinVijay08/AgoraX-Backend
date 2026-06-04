@@ -10,12 +10,20 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.security.Key;
+import java.util.Date;
+
 @Component
+@Slf4j
 public class JwtUtil {
     private static final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
     public String generateToken(User user) {
-        return Jwts.builder()
+        log.info("[JWT] Generating token for user: {}", user.getEmail());
+        String token = Jwts.builder()
                 .setSubject(user.getEmail())
                 .setIssuedAt(new Date())
                 .setExpiration(
@@ -23,25 +31,33 @@ public class JwtUtil {
                 )
                 .signWith(key)
                 .compact();
+        log.info("[JWT] Token generated successfully for {}", user.getEmail());
+        return token;
     }
 
     public String extractEmail(String token) {
-        return Jwts.parserBuilder()
+        log.info("[JWT] Extracting email from token");
+        String email = Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
+        log.info("[JWT] Extracted email from token: {}", email);
+        return email;
     }
 
     public boolean isValid(String token) {
+        log.info("[JWT] Validating token...");
         try {
             Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()
                     .parseClaimsJws(token);
+            log.info("[JWT] Token is valid");
             return true;
         } catch (Exception e) {
+            log.warn("[JWT] Token validation failed: {}", e.getMessage());
             return false;
         }
     }

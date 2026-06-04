@@ -15,7 +15,15 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
+import java.util.Optional;
+
 @Service
+@Slf4j
 public class CommentVoteService {
 
     private  final CommentRepo commentRepo;
@@ -31,21 +39,28 @@ public class CommentVoteService {
     public CommentResponse voteOnComment(long commentId, VoteRequest voteRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
+        log.info("[SERVICE] User {} voting {} on commentId: {}", email, voteRequest.voteType(), commentId);
         User user = userRepo.findByEmail(email);
         Optional<Comment> comment = commentRepo.findById(commentId);
-        Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user, comment.get());
-        if(comment.isPresent()) {
-            if (commentVote.isEmpty()) {
-                CommentVote commentVote1 = new CommentVote(user, comment.get(), voteRequest.voteType());
-                commentVoteRepo.save(commentVote1);
-            } else if (voteRequest.voteType().equals(commentVote.get().getVoteType())) {
-                commentVoteRepo.delete(commentVote.get());
-            } else if (!voteRequest.voteType().equals(commentVote.get().getVoteType())) {
-                commentVote.get().setVoteType(voteRequest.voteType());
-                commentVoteRepo.save(commentVote.get());
-            }
+        if(comment.isEmpty()) {
+            log.warn("[SERVICE] Comment ID {} not found for voting", commentId);
+            throw new RuntimeException("Comment not found");
         }
-       return maptoCommentResponse(comment.get());
+        Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user, comment.get());
+        if (commentVote.isEmpty()) {
+            log.info("[SERVICE] No existing vote found. Saving new {} vote for comment ID: {}", voteRequest.voteType(), commentId);
+            CommentVote commentVote1 = new CommentVote(user, comment.get(), voteRequest.voteType());
+            commentVoteRepo.save(commentVote1);
+        } else if (voteRequest.voteType().equals(commentVote.get().getVoteType())) {
+            log.info("[SERVICE] User is repeating same vote type. Toggling/deleting vote from comment ID: {}", commentId);
+            commentVoteRepo.delete(commentVote.get());
+        } else if (!voteRequest.voteType().equals(commentVote.get().getVoteType())) {
+            log.info("[SERVICE] User is changing vote type from {} to {}. Updating vote for comment ID: {}", 
+                     commentVote.get().getVoteType(), voteRequest.voteType(), commentId);
+            commentVote.get().setVoteType(voteRequest.voteType());
+            commentVoteRepo.save(commentVote.get());
+        }
+        return maptoCommentResponse(comment.get());
 
         }
 
