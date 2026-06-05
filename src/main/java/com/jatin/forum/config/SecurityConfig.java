@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(customAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login","/api/auth/register","/api/auth/google").permitAll().requestMatchers(HttpMethod.GET,"/api/posts", "/api/posts/**","/api/comments/post/{postId}", "/api/users/recent").permitAll().requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/api/auth/login","/api/auth/register","/api/auth/google").permitAll().requestMatchers(HttpMethod.GET,"/api/posts", "/api/posts/**","/api/comments/post/{postId}", "/api/users/recent").permitAll().requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 ).addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
