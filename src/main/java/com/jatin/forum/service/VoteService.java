@@ -7,7 +7,6 @@ import com.jatin.forum.entity.Post;
 import com.jatin.forum.entity.PostVote;
 import com.jatin.forum.entity.User;
 import com.jatin.forum.entity.VoteType;
-import com.jatin.forum.repository.CommentRepo;
 import com.jatin.forum.repository.PostRepo;
 import com.jatin.forum.repository.PostVoteRepo;
 import com.jatin.forum.repository.UserRepo;
@@ -17,18 +16,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -64,16 +55,38 @@ public class VoteService {
            if(postVote.isEmpty()){
                log.info("[SERVICE] No existing post vote found. Saving new {} vote for post ID: {}", voteType, postId);
                PostVote postVote1 = new PostVote(user,post.get(),voteType);
+               if(VoteType.upvote.equals(voteType)){
+                   post.get().setUpvotesCount(post.get().getUpvotesCount()+1);
+               }
+               else if(VoteType.downvote.equals(voteType)){
+                   post.get().setDownvotesCount(post.get().getDownvotesCount()+1);
+               }
                postVoteRepo.save(postVote1);
+               postRepo.save(post.get());
            }
            else if(postVote.get().getVoteType().equals(voteType)){
                log.info("[SERVICE] User is repeating same vote type. Toggling/deleting vote from post ID: {}", postId);
+               if(VoteType.upvote.equals(voteType)){
+                   post.get().setUpvotesCount(post.get().getUpvotesCount()-1);
+               }
+               else if(VoteType.downvote.equals(voteType)){
+                   post.get().setDownvotesCount(post.get().getDownvotesCount()-1);
+               }
                postVoteRepo.delete(postVote.get());
+               postRepo.save(post.get());
            }
            else if(!postVote.get().getVoteType().equals(voteType)){
                log.info("[SERVICE] User is changing vote type from {} to {}. Updating vote for post ID: {}", 
                         postVote.get().getVoteType(), voteType, postId);
                postVote.get().setVoteType(voteType);
+               if(VoteType.upvote.equals(voteType)){
+                   post.get().setUpvotesCount(post.get().getUpvotesCount()+1);
+                   post.get().setDownvotesCount(post.get().getDownvotesCount()-1);
+               }
+               else if(VoteType.downvote.equals(voteType)){
+                   post.get().setDownvotesCount(post.get().getDownvotesCount()+1);
+                   post.get().setUpvotesCount(post.get().getUpvotesCount()-1);
+               }
                postVoteRepo.save(postVote.get());
            }
 
@@ -94,6 +107,6 @@ public class VoteService {
                redisTemplate.opsForValue().set(key,"0",150,TimeUnit.SECONDS);
                log.info("[SERVICE] Caches cleared and counter reset.");
            }
-         return postService.mapToPostResponse(post.get());
+         return postService.mapToPostResponse(post.get(),user);
 }
 }

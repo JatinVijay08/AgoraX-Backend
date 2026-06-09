@@ -48,16 +48,46 @@ public class CommentVoteService {
         }
         Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user, comment.get());
         if (commentVote.isEmpty()) {
+
             log.info("[SERVICE] No existing vote found. Saving new {} vote for comment ID: {}", voteRequest.voteType(), commentId);
             CommentVote commentVote1 = new CommentVote(user, comment.get(), voteRequest.voteType());
+
+            if(voteRequest.voteType().equals(VoteType.upvote)){
+                comment.get().setUpvotes(comment.get().getUpvotes() + 1);
+            }
+
+            else if(voteRequest.voteType().equals(VoteType.downvote)){
+                comment.get().setDownvotes(comment.get().getDownvotes() + 1);
+            }
+
             commentVoteRepo.save(commentVote1);
+            commentRepo.save(comment.get());
+
         } else if (voteRequest.voteType().equals(commentVote.get().getVoteType())) {
+
             log.info("[SERVICE] User is repeating same vote type. Toggling/deleting vote from comment ID: {}", commentId);
+
+            if(voteRequest.voteType().equals(VoteType.upvote)){
+                comment.get().setUpvotes(comment.get().getUpvotes() - 1);
+            }
+            else if(voteRequest.voteType().equals(VoteType.downvote)){
+                comment.get().setDownvotes(comment.get().getDownvotes() - 1);
+            }
             commentVoteRepo.delete(commentVote.get());
-        } else if (!voteRequest.voteType().equals(commentVote.get().getVoteType())) {
+            commentRepo.save(comment.get());
+        }
+        else if (!voteRequest.voteType().equals(commentVote.get().getVoteType())) {
             log.info("[SERVICE] User is changing vote type from {} to {}. Updating vote for comment ID: {}", 
                      commentVote.get().getVoteType(), voteRequest.voteType(), commentId);
             commentVote.get().setVoteType(voteRequest.voteType());
+            if(voteRequest.voteType().equals(VoteType.downvote)){
+                comment.get().setDownvotes(comment.get().getDownvotes() + 1);
+                comment.get().setUpvotes(comment.get().getUpvotes() - 1);
+            }
+            else if(voteRequest.voteType().equals(VoteType.upvote)){
+                comment.get().setDownvotes(comment.get().getDownvotes() - 1);
+                comment.get().setUpvotes(comment.get().getUpvotes() + 1);
+            }
             commentVoteRepo.save(commentVote.get());
         }
         return maptoCommentResponse(comment.get());
@@ -68,8 +98,8 @@ public class CommentVoteService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User user = userRepo.findByEmail(email);
-        long upvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.upvote);
-        long downvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.downvote);
+        long upvotes = comment.getUpvotes();
+        long downvotes = comment.getDownvotes();
 
         long voteCount = upvotes-downvotes;
 

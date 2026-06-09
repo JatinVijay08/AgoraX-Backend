@@ -59,6 +59,7 @@ public class UserController {
     @GetMapping("/profile/{username}/posts")
     public List<PostResponse> getProfilePosts(@PathVariable String username, @RequestParam(defaultValue = "new") String sort) {
         log.info("[CONTROLLER] Request to fetch profile posts for username: {} (sort: {})", username, sort);
+
         List<PostResponse> posts = userService.getPostsByUsernameSorted(username, sort);
         log.info("[CONTROLLER] Fetched {} posts for username: {}", posts.size(), username);
         return posts;
@@ -67,7 +68,7 @@ public class UserController {
     @GetMapping("/posts")
     public List<PostResponse> getPosts(@RequestParam(defaultValue = "new") String sort) {
         log.info("[CONTROLLER] Request to fetch posts of current user (sort: {})", sort);
-        List<PostResponse> posts = userService.getPostsSorted(currentUser().getId(), sort);
+        List<PostResponse> posts = userService.getPostsSorted(currentUser().getId(), sort,currentUser());
         log.info("[CONTROLLER] Fetched {} posts for current user", posts.size());
         return posts;
     }

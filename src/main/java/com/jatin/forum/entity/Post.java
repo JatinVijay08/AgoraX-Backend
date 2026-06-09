@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.List;
 
 
 @AllArgsConstructor
@@ -46,4 +47,14 @@ public class Post {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @Setter
+    private long commentCount;
+
+    @Setter
+    private long upvotesCount;
+
+    @Setter
+    private long downvotesCount;
+
 }

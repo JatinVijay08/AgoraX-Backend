@@ -13,9 +13,7 @@ import com.jatin.forum.repository.PostVoteRepo;
 import com.jatin.forum.repository.UserRepo;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.annotations.Cache;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
@@ -41,10 +39,8 @@ public class PostService {
     private final UserRepo userRepo;
     private final PostVoteRepo postVoteRepo;
     private final CommentRepo commentRepo;
-    private PostRepo postRepo;
-    private RedisTemplate<String,String> redisTemplate;
-    @Autowired
-    tools.jackson.databind.ObjectMapper jacksonObjectMapper;
+    private final PostRepo postRepo;
+    private final RedisTemplate<String,String> redisTemplate;
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -58,8 +54,10 @@ public class PostService {
 
 
 
+
     public PostFeedResponse getAllPosts(String sort, int page,int  limit, String cursor){
              Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+             String email = authentication.getName();
              boolean isAuthenticated = authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser");
              log.info("[SERVICE] Fetching posts list. Sort: {}, Page: {}, Limit: {}, Cursor: {}, Authenticated User: {}", sort, page, limit, cursor, isAuthenticated ? authentication.getName() : "Anonymous");
 
@@ -70,7 +68,11 @@ public class PostService {
                      // first page,load from cache, and cache reloads from time to time
                      String key = "feed:"+"new:"+limit;
                      log.info("[SERVICE] Attempting to hit Redis cache for key: {}", key);
+
+                     long start = System.currentTimeMillis();
                      String cached =  redisTemplate.opsForValue().get(key);
+                     System.out.println("Redis get request time:   "+(System.currentTimeMillis()-start));
+
                      if(cached!=null){
                          log.info("[SERVICE] Redis Cache HIT for key: {}", key);
                          // fetch from cache
@@ -80,16 +82,29 @@ public class PostService {
                      log.info("[SERVICE] Redis Cache MISS for key: {}. Fetching from Database...", key);
                      // first page->not stored in cache->fetch from database->store in cache
                      Instant cursorTime = Instant.now();
+                     start = System.currentTimeMillis();
                      List<Post> newList = postRepo.findPostNew(cursorTime, PageRequest.of(0, limit));
+                     System.out.println("Finding list of posts via cursor in paginated form took time:     "+(System.currentTimeMillis()-start));
+
+                     User user = userRepo.findByEmail(email);
+
+                     start = System.currentTimeMillis();
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
                              .toList();
+                     System.out.println("Each post DTO CONVERISON(Authenticated person) took time:     "+(System.currentTimeMillis()-start));
+
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
                      boolean hasMore = newList.size() == limit;
                      PostFeedResponse postFeedResponse = new PostFeedResponse(postResponses, newCursor != null ? newCursor.toString() : null, hasMore);
 
+                         start = System.currentTimeMillis();
                          String cacheStringObject = objectMapper.writeValueAsString(postFeedResponse);
-                         redisTemplate.opsForValue().set(key, cacheStringObject, 1, TimeUnit.MINUTES);
+                     System.out.println("Object Mapper from DTO to redis ready object took time:    "+(System.currentTimeMillis()-start));
+
+                     start = System.currentTimeMillis();
+                     redisTemplate.opsForValue().set(key, cacheStringObject, 1, TimeUnit.MINUTES);
+                     System.out.println("Setting Cache in Redis took time :     "+(System.currentTimeMillis()-start));
                          log.info("[SERVICE] Saved retrieved feed to Redis cache with key: {}", key);
 
                      return postFeedResponse;
@@ -99,8 +114,9 @@ public class PostService {
                      log.info("[SERVICE] Cursor is present: {}. Fetching new posts from database directly...", cursor);
                      Instant cursorTime = Instant.parse(cursor);
                      List<Post> newList = postRepo.findPostNew(cursorTime, PageRequest.of(0, limit));
+                     User user = userRepo.findByEmail(email);
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
                              .toList();
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
                      boolean hasMore = newList.size() == limit;
@@ -122,8 +138,9 @@ public class PostService {
                      // hit the database
                      Instant sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS);
                      List<Post> hotList = postRepo.findPostRecent(sevenDaysAgo);
+                     User user = userRepo.findByEmail(email);
                      List<PostResponse> postResponses = hotList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
                              .sorted(Comparator.comparingDouble(PostResponse::hotScore).reversed())
                              .skip((long) page * limit)
                              .limit(limit)
@@ -152,11 +169,13 @@ public class PostService {
                      Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
                      List<Post> recentTotal = postRepo.findPostRecent(twentyFourHoursAgo);
 
+                     User user = userRepo.findByEmail(email);
+
                      List<PostResponse> postResponses = recentTotal.stream()
                              .sorted((p1, p2) -> Double.compare(getTrendingScore(p2), getTrendingScore(p1)))
                              .skip((long) page * limit)
                              .limit(limit)
-                             .map(post -> isAuthenticated ? mapToPostResponse(post) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
                              .toList();
 
                      boolean hasMore = postResponses.size() == limit;
@@ -202,7 +221,7 @@ public class PostService {
             redisTemplate.delete(keys);
             log.info("[SERVICE] Deleted {} cached keys matching feed:*", keys.size());
         }
-        return mapToPostResponse(savedPost);
+        return mapToPostResponse(savedPost,user);
     }
 
     public PostResponse getPostById(Long id){
@@ -212,9 +231,11 @@ public class PostService {
             return new RuntimeException("post not found");
         });
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
         if (authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser")) {
              log.info("[SERVICE] User is authenticated as: {}. Generating mapToPostResponse", authentication.getName());
-             return mapToPostResponse(post);
+             User user = userRepo.findByEmail(email);
+             return mapToPostResponse(post,user);
         } else {
              log.info("[SERVICE] Request is unauthenticated. Generating mapToPostResponseUnauthenticated");
              return mapToPostResponseUnauthenticated(post);
@@ -247,20 +268,34 @@ public class PostService {
 
     }
 
-    public PostResponse mapToPostResponse(Post post){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
+    public PostResponse mapToPostResponse(Post post,User user){
+
         if(user==null){
             throw new RuntimeException("User not found");
         }
-        long upvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.upvote);
-        long downvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.downvote);
+
+        long start = System.currentTimeMillis();
+        long upvotes = post.getUpvotesCount();
+        System.out.println("Fetching number of upvotes took:   "+(System.currentTimeMillis()-start));
+
+        start = System.currentTimeMillis();
+        long downvotes = post.getDownvotesCount();
+        System.out.println("Fetching number of upvotes took:   "+(System.currentTimeMillis()-start));
 
         long votes = upvotes-downvotes;
-        long commentCount = commentRepo.countByPostId(post.getId());
+
+        start = System.currentTimeMillis();
+        long commentCount = post.getCommentCount();
+        System.out.println("Fetching number of comments using postId took:   "+(System.currentTimeMillis()-start));
+
+        start = System.currentTimeMillis();
         VoteType voteType = postVoteRepo.findByUserAndPost(user,post).map(PostVote::getVoteType).orElse(null);
+        System.out.println("Fetching votetype of current logged in user for a particular post took :   "+(System.currentTimeMillis()-start));
+
+        start = System.currentTimeMillis();
         User user1 = post.getUser();
+        System.out.println("Fetching user from post using getter took:   "+(System.currentTimeMillis()-start));
+
         long hoursOld = Duration.between(post.getCreatedAt(),Instant.now()).toHours();
         double hotScore = votes/Math.pow(hoursOld+2,1.5);
 
@@ -269,17 +304,16 @@ public class PostService {
     }
 
     public PostResponse mapToPostResponseUnauthenticated(Post post){
-        long upvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.upvote);
-        long downvotes = postVoteRepo.countByPostAndVoteType(post, VoteType.downvote);
+        long upvotes = post.getUpvotesCount();
+        long downvotes = post.getDownvotesCount();
 
         long votes = upvotes-downvotes;
-        long commentCount = commentRepo.countByPostId(post.getId());
-        VoteType voteType = null;
+        long commentCount = post.getCommentCount();
         User user1 = post.getUser();
         long hoursOld = Duration.between(post.getCreatedAt(),Instant.now()).toHours();
         double hotScore = votes/Math.pow(hoursOld+2,1.5);
 
-        return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, voteType,post.getCreatedAt(),hotScore, post.getMediaUrl(), post.getMediaType());
+        return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, null,post.getCreatedAt(),hotScore, post.getMediaUrl(), post.getMediaType());
     }
 
 }

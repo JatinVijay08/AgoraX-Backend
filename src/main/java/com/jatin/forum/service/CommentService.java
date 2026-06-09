@@ -59,6 +59,10 @@ public class CommentService {
             comment.setParentComment(parent);
         }
         commentRepo.save(comment);
+
+        long newCommentCount = post.get().getCommentCount();
+        post.get().setCommentCount(newCommentCount+1);
+        postRepo.save(post.get());
         log.info("[SERVICE] Comment successfully saved to DB with ID: {}", comment.getId());
         return maptoCommentResponse(comment);
     }
@@ -77,7 +81,12 @@ public class CommentService {
             log.warn("[SERVICE] Comment deletion failed: User {} is not authorized to delete comment owned by {}", email, comment.get().getUser().getEmail());
             throw new RuntimeException("You are not allowed to delete this comment");
         }
+        Post post = comment.get().getPost();
+        post.setCommentCount(post.getCommentCount()-1);
+        postRepo.save(post);
         commentRepo.delete(comment.get());
+
+
         log.info("[SERVICE] Comment ID {} deleted from DB", commentID);
     }
 
@@ -93,9 +102,10 @@ public class CommentService {
             email = null;
         }
         log.info("[SERVICE] Active user for fetching comments: {}", email);
+        User user = userRepo.findByEmail(email);
         return comments.map(comment->{
-            long upvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.upvote);
-            long downvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.downvote);
+            long upvotes = comment.getUpvotes();
+            long downvotes = comment.getDownvotes();
 
             long voteCount = upvotes-downvotes;
 
@@ -103,7 +113,6 @@ public class CommentService {
             VoteType voteType=null;
 
             if(email!=null) {
-                User user = userRepo.findByEmail(email);
                 Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user,comment);
                 voteType = commentVote.map(CommentVote::getVoteType).orElse(null);
             }
@@ -116,8 +125,7 @@ public class CommentService {
             }
 
 
-            CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
-            return commentResponse;
+            return new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
         });
 
     }
@@ -126,8 +134,8 @@ public class CommentService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User user = userRepo.findByEmail(email);
-        long upvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.upvote);
-        long downvotes = commentVoteRepo.countByCommentAndVoteType(comment, VoteType.downvote);
+        long upvotes = comment.getUpvotes();
+        long downvotes = comment.getDownvotes();
 
         long voteCount = upvotes-downvotes;
 
@@ -139,8 +147,7 @@ public class CommentService {
             parentCommentId = comment.getParentComment().getId();
         }
         VoteType voteType = commentVote.map(CommentVote::getVoteType).orElse(null);
-        CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
-        return commentResponse;
+        return new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
     }
 
 }

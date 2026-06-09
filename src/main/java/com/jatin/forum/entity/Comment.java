@@ -2,6 +2,8 @@ package com.jatin.forum.entity;
 
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 
 import java.time.Instant;
@@ -30,6 +32,13 @@ public class Comment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_comment_Id")
     private Comment parentComment;
+
+    @Getter
+    @Setter
+    private long upvotes;
+    @Getter
+    @Setter
+    private long downvotes;
 
     protected Comment() {
     }

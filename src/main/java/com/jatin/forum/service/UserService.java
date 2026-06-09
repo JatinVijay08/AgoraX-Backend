@@ -3,9 +3,7 @@ package com.jatin.forum.service;
 import com.jatin.forum.dto.PostResponse;
 import com.jatin.forum.dto.UpdateUsernameRequest;
 import com.jatin.forum.dto.UserResponse;
-import com.jatin.forum.entity.Comment;
 import com.jatin.forum.entity.Post;
-import com.jatin.forum.entity.PostVote;
 import com.jatin.forum.entity.User;
 import com.jatin.forum.repository.CommentRepo;
 import com.jatin.forum.repository.PostRepo;
@@ -13,33 +11,28 @@ import com.jatin.forum.repository.PostVoteRepo;
 import com.jatin.forum.repository.UserRepo;
 import com.jatin.forum.exception.UserAlreadyExistsException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 public class UserService {
     private final UserRepo userRepo;
     private final PostRepo postRepo;
-    private final PostVoteRepo postVoteRepo;
     private final CommentRepo commentRepo;
     private final PostService postService;
 
     public UserService(UserRepo userRepo, PostRepo postRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, PostService postService) {
         this.userRepo = userRepo;
         this.postRepo = postRepo;
-        this.postVoteRepo = postVoteRepo;
         this.commentRepo = commentRepo;
         this.postService = postService;
     }
+
 
     public com.jatin.forum.dto.UserProfileResponse findById(Long id) {
         log.info("[SERVICE] Fetching user profile by ID: {}", id);
@@ -66,24 +59,20 @@ public class UserService {
         long commentCount = 0;
         long karma = 0;
         for (Post post : posts) {
-            commentCount += commentRepo.countByPostId(post.getId());
-            karma += postVoteRepo.countByPostAndVoteType(post, com.jatin.forum.entity.VoteType.upvote);
-            karma -= postVoteRepo.countByPostAndVoteType(post, com.jatin.forum.entity.VoteType.downvote);
+            commentCount += post.getCommentCount();
+            karma += post.getUpvotesCount();
+            karma -= post.getDownvotesCount();
         }
         log.info("[SERVICE] Profile stats computed: postCount={}, commentCount={}, karma={}", postCount, commentCount, karma);
         return new com.jatin.forum.dto.UserProfileResponse(user.getUsername(), user.getEmail(), user.getCreated(), postCount, commentCount, karma);
     }
 
-    public List<PostResponse> getPosts(Long id) {
-        log.info("[SERVICE] Fetching raw post responses for User ID: {}", id);
-        return postRepo.getPostByUserId(id).stream().map(postService::mapToPostResponse).toList();
-    }
 
-    public List<PostResponse> getPostsSorted(Long id, String sort) {
+    public List<PostResponse> getPostsSorted(Long id, String sort,User user) {
         log.info("[SERVICE] Fetching sorted posts for User ID: {} (sort: {})", id, sort);
         List<PostResponse> posts = postRepo.getPostByUserId(id)
                 .stream()
-                .map(postService::mapToPostResponse)
+                .map(post -> postService.mapToPostResponse(post,user))
                 .toList();
 
         if ("top".equals(sort)) {
@@ -105,7 +94,7 @@ public class UserService {
             log.warn("[SERVICE] Username {} not found during sorted posts fetch", username);
             return new RuntimeException("User not found");
         });
-        return getPostsSorted(user.getId(), sort);
+        return getPostsSorted(user.getId(), sort,user);
     }
 
     @Transactional
@@ -129,7 +118,7 @@ public class UserService {
         log.info("[SERVICE] Fetching active recent users list");
         return userRepo.findUserByLastLoginAtBefore(Instant.now()).stream()
                 .filter(user -> user.getLastLoginAt() != null)
-                .filter(user -> currentUserId == null || !user.getId().equals(currentUserId))
+                .filter(user -> !user.getId().equals(currentUserId))
                 .sorted(Comparator.comparing(User::getLastLoginAt).reversed())
                 .limit(5)
                 .map(user -> new UserResponse(user.getUsername(), user.getEmail(), null))
