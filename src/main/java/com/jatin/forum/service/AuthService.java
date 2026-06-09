@@ -38,9 +38,7 @@ public class AuthService {
     }
 
     public void register(RegisterRequest registerRequest) {
-        log.info("[SERVICE] Attempting to register user: {}", registerRequest.email());
         if (userRepo.findByEmail(registerRequest.email()) != null) {
-            log.warn("[SERVICE] Registration failed: Email {} is already registered", registerRequest.email());
             throw new UserAlreadyExistsException("User is already Registered with this Email");
         }
 
@@ -88,9 +86,7 @@ public class AuthService {
 
         User existingUser = userRepo.findByEmail(email);
         if(existingUser!=null){
-            log.info("[SERVICE] User already exists in database with email: {}", email);
             if(existingUser.getAuthProvider()== AuthProvider.LOCAL){
-                log.warn("[SERVICE] Existing user has LOCAL auth provider. Denying Google OAuth login.");
                 throw new RuntimeException("This email is already registered with email and password.Please Login normally");
             }
 
@@ -99,12 +95,10 @@ public class AuthService {
             existingUser.setLastLoginAt(Instant.now());
             userRepo.save(existingUser);
             String username = existingUser.getUsername();
-            log.info("[SERVICE] Google login successful for existing user: {}", email);
             return new LoginResponseDto(jwt,username);
         }
 
         // if existingUser is null, then register a new user
-        log.info("[SERVICE] No existing user found. Registering a new Google user for: {}", email);
         User newUser = User.builder()
                 .email(email)
                 .password(null)
@@ -118,19 +112,16 @@ public class AuthService {
         userRepo.save(newUser);
 
         String jwt = jwtUtil.generateToken(newUser);
-        log.info("[SERVICE] Google registration and login successful for: {}", email);
         return new LoginResponseDto(jwt,newUser.getUsername());
     }
 
     private String generateUsername(String name) {
-        log.info("[SERVICE] Generating username candidate for name: {}", name);
         String base = name.toLowerCase().replaceAll("\\s+", "_");
         String candidate = base;
         int i = 1;
         while (userRepo.existsByUsername(candidate)){
             candidate = base + "_" + i++;
         }
-        log.info("[SERVICE] Final unique username generated: {}", candidate);
         return candidate;
     }
 }

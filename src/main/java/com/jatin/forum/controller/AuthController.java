@@ -27,29 +27,25 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest registerRequest) {
-        log.info("[CONTROLLER] Register request received for email: {}, username: {}", registerRequest.email(), registerRequest.username());
         authService.register(registerRequest);
-        log.info("[CONTROLLER] User registered successfully: {}", registerRequest.email());
         return ResponseEntity.ok("User registered successfully");
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequest loginRequest) {
-        log.info("[CONTROLLER] Login request received for email: {}", loginRequest.email());
+
         LoginResponseDto loginResponseDto = authService.login(loginRequest);
-        log.info("[CONTROLLER] Login successful for email: {}", loginRequest.email());
+
         return ResponseEntity.ok(loginResponseDto);
     }
 
     @PostMapping("/google")
     public ResponseEntity<LoginResponseDto> googleLogin(@Valid @RequestBody GoogleAuthRequest googleAuthRequest) {
-        log.info("[CONTROLLER] Google login request received");
+
         try {
             LoginResponseDto response = authService.googleLogin(googleAuthRequest.idToken());
-            log.info("[CONTROLLER] Google login successful");
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            log.error("[CONTROLLER] Google login failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new LoginResponseDto(null, e.getMessage()));
         }
     }

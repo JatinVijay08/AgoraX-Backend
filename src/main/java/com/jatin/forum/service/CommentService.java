@@ -87,11 +87,9 @@ public class CommentService {
         commentRepo.delete(comment.get());
 
 
-        log.info("[SERVICE] Comment ID {} deleted from DB", commentID);
     }
 
     public Page<CommentResponse> getCommentByPostId(Long postId, int page,int size) {
-        log.info("[SERVICE] Fetching page {} of size {} comments for postId: {}", page, size, postId);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC,"createdAt"));
         Page<Comment> comments =  commentRepo.findByPostId(postId, pageable);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -101,7 +99,6 @@ public class CommentService {
         } else {
             email = null;
         }
-        log.info("[SERVICE] Active user for fetching comments: {}", email);
         User user = userRepo.findByEmail(email);
         return comments.map(comment->{
             long upvotes = comment.getUpvotes();

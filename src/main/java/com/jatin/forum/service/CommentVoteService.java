@@ -39,17 +39,14 @@ public class CommentVoteService {
     public CommentResponse voteOnComment(long commentId, VoteRequest voteRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
-        log.info("[SERVICE] User {} voting {} on commentId: {}", email, voteRequest.voteType(), commentId);
         User user = userRepo.findByEmail(email);
         Optional<Comment> comment = commentRepo.findById(commentId);
         if(comment.isEmpty()) {
-            log.warn("[SERVICE] Comment ID {} not found for voting", commentId);
             throw new RuntimeException("Comment not found");
         }
         Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user, comment.get());
         if (commentVote.isEmpty()) {
 
-            log.info("[SERVICE] No existing vote found. Saving new {} vote for comment ID: {}", voteRequest.voteType(), commentId);
             CommentVote commentVote1 = new CommentVote(user, comment.get(), voteRequest.voteType());
 
             if(voteRequest.voteType().equals(VoteType.upvote)){
@@ -65,7 +62,6 @@ public class CommentVoteService {
 
         } else if (voteRequest.voteType().equals(commentVote.get().getVoteType())) {
 
-            log.info("[SERVICE] User is repeating same vote type. Toggling/deleting vote from comment ID: {}", commentId);
 
             if(voteRequest.voteType().equals(VoteType.upvote)){
                 comment.get().setUpvotes(comment.get().getUpvotes() - 1);
@@ -77,8 +73,7 @@ public class CommentVoteService {
             commentRepo.save(comment.get());
         }
         else if (!voteRequest.voteType().equals(commentVote.get().getVoteType())) {
-            log.info("[SERVICE] User is changing vote type from {} to {}. Updating vote for comment ID: {}", 
-                     commentVote.get().getVoteType(), voteRequest.voteType(), commentId);
+
             commentVote.get().setVoteType(voteRequest.voteType());
             if(voteRequest.voteType().equals(VoteType.downvote)){
                 comment.get().setDownvotes(comment.get().getDownvotes() + 1);

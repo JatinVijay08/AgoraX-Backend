@@ -35,25 +35,20 @@ public class UserService {
 
 
     public com.jatin.forum.dto.UserProfileResponse findById(Long id) {
-        log.info("[SERVICE] Fetching user profile by ID: {}", id);
         User user = userRepo.findById(id).orElseThrow(() -> {
-            log.warn("[SERVICE] User ID {} not found", id);
             return new RuntimeException("User not found");
         });
         return buildUserProfileResponse(user);
     }
 
     public com.jatin.forum.dto.UserProfileResponse findByUsernameProfile(String username) {
-        log.info("[SERVICE] Fetching user profile by username: {}", username);
         User user = userRepo.findByUsername(username).orElseThrow(() -> {
-            log.warn("[SERVICE] Username {} not found", username);
             return new RuntimeException("User not found");
         });
         return buildUserProfileResponse(user);
     }
 
     private com.jatin.forum.dto.UserProfileResponse buildUserProfileResponse(User user) {
-        log.info("[SERVICE] Computing profile stats (posts, comments, karma) for: {}", user.getUsername());
         List<Post> posts = postRepo.getPostByUserId(user.getId());
         long postCount = posts.size();
         long commentCount = 0;
@@ -63,35 +58,29 @@ public class UserService {
             karma += post.getUpvotesCount();
             karma -= post.getDownvotesCount();
         }
-        log.info("[SERVICE] Profile stats computed: postCount={}, commentCount={}, karma={}", postCount, commentCount, karma);
         return new com.jatin.forum.dto.UserProfileResponse(user.getUsername(), user.getEmail(), user.getCreated(), postCount, commentCount, karma);
     }
 
 
     public List<PostResponse> getPostsSorted(Long id, String sort,User user) {
-        log.info("[SERVICE] Fetching sorted posts for User ID: {} (sort: {})", id, sort);
         List<PostResponse> posts = postRepo.getPostByUserId(id)
                 .stream()
                 .map(post -> postService.mapToPostResponse(post,user))
                 .toList();
 
         if ("top".equals(sort)) {
-            log.info("[SERVICE] Sorting posts by top (votes)");
             return posts.stream()
                     .sorted(Comparator.comparingLong(PostResponse::voteCount).reversed())
                     .toList();
         }
         // default: new (already sorted by DB insertion order, but sort by createdAt to be explicit)
-        log.info("[SERVICE] Sorting posts by new (creation date)");
         return posts.stream()
                 .sorted(Comparator.comparing(PostResponse::createdAt).reversed())
                 .toList();
     }
 
     public List<PostResponse> getPostsByUsernameSorted(String username, String sort) {
-        log.info("[SERVICE] Fetching posts for username: {} sorted by: {}", username, sort);
         User user = userRepo.findByUsername(username).orElseThrow(() -> {
-            log.warn("[SERVICE] Username {} not found during sorted posts fetch", username);
             return new RuntimeException("User not found");
         });
         return getPostsSorted(user.getId(), sort,user);
@@ -99,23 +88,18 @@ public class UserService {
 
     @Transactional
     public UserResponse updateUsername(Long userId, UpdateUsernameRequest request) {
-        log.info("[SERVICE] Attempting to update username for user ID: {} to {}", userId, request.username());
         if (userRepo.existsByUsername(request.username())) {
-            log.warn("[SERVICE] Username update failed: '{}' is already taken", request.username());
             throw new UserAlreadyExistsException("Username '" + request.username() + "' is already taken");
         }
         User user = userRepo.findById(userId).orElseThrow(() -> {
-            log.error("[SERVICE] User ID {} not found during username update", userId);
             return new RuntimeException("User not found");
         });
         user.setUsername(request.username());
         userRepo.save(user);
-        log.info("[SERVICE] Username updated successfully in database for User ID {}", userId);
         return new UserResponse(user.getUsername(), user.getEmail(), user.getCreated());
     }
 
     public List<UserResponse> getRecentUsers(Long currentUserId) {
-        log.info("[SERVICE] Fetching active recent users list");
         return userRepo.findUserByLastLoginAtBefore(Instant.now()).stream()
                 .filter(user -> user.getLastLoginAt() != null)
                 .filter(user -> !user.getId().equals(currentUserId))

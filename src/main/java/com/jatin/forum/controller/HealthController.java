@@ -15,7 +15,7 @@ public class HealthController {
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
-        log.info("[CONTROLLER] Health check endpoint hit");
+
         return ResponseEntity.ok(Map.of("status", "UP"));
     }
 

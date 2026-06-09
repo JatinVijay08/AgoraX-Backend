@@ -36,8 +36,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,JwtAuthenticationFilter jwtAuthenticationFilter, CustomAuthenticationEntryPoint customAuthenticationEntryPoint) throws Exception {
-
-        System.out.println("Security config loaded");
+        
 
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
