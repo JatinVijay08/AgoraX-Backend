@@ -1,6 +1,9 @@
 package com.jatin.forum.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Instant;
 
 @Entity
@@ -18,6 +21,8 @@ public class PostVote {
 
     @ManyToOne
     @JoinColumn(name="post_id",nullable = false)
+    @Getter
+    @Setter
     Post post;
 
     private Instant createdAt = Instant.now();

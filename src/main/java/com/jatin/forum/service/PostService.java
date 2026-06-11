@@ -26,9 +26,7 @@ import java.time.Instant;
 
 
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -57,9 +55,9 @@ public class PostService {
 
     public PostFeedResponse getAllPosts(String sort, int page,int  limit, String cursor){
              Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-             String email = authentication.getName();
              boolean isAuthenticated = authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser");
-
+        assert authentication != null;
+        String email = authentication.getName();
              if(sort.equals("new")){
                  // newSections: first page is almost the same for everyone: and can be same for two person for specific time
                  // Rest of the pages can be fetched from databases directly
@@ -83,9 +81,23 @@ public class PostService {
 
                      User user = userRepo.findByEmail(email);
 
+                     // removing the query finding VoteType by user and post for each post
+                     List<Long> postIds = new ArrayList<>();
+                     for(Post post:newList){
+                         postIds.add(post.getId());
+                     }
+
+                     // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
+                     // for all posts
+                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
+                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+
+                     for(PostVote vote:postVotes){
+                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
+                     }
 
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
                              .toList();
 
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
@@ -99,12 +111,29 @@ public class PostService {
                      return postFeedResponse;
                  }
                  else{
+
                      // cursor is not null->fetch normally-> no cache ,cause cursor can be different for different people
                      Instant cursorTime = Instant.parse(cursor);
                      List<Post> newList = postRepo.findPostNew(cursorTime, PageRequest.of(0, limit));
                      User user = userRepo.findByEmail(email);
+
+                     // removing the query finding VoteType by user and post for each post
+                     List<Long> postIds = new ArrayList<>();
+                     for(Post post:newList){
+                         postIds.add(post.getId());
+                     }
+
+                     // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
+                     // for all posts
+                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
+                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+
+                     for(PostVote vote:postVotes){
+                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
+                     }
+
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
                              .toList();
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
                      boolean hasMore = newList.size() == limit;
@@ -113,7 +142,7 @@ public class PostService {
 
              }
              if(sort.equals("hot")) {
-                 String key = "feed:"+"hot:"+1;
+                 String key = "feed:"+"hot:"+limit;
                  // check cache keys->
                  String cached =  redisTemplate.opsForValue().get(key);
                  if(cached!=null){
@@ -124,8 +153,24 @@ public class PostService {
                      Instant sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS);
                      List<Post> hotList = postRepo.findPostRecent(sevenDaysAgo);
                      User user = userRepo.findByEmail(email);
+
+                     // removing the query finding VoteType by user and post for each post
+                     List<Long> postIds = new ArrayList<>();
+                     for(Post post:hotList){
+                         postIds.add(post.getId());
+                     }
+
+                     // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
+                     // for all posts
+                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
+                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+
+                     for(PostVote vote:postVotes){
+                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
+                     }
+
                      List<PostResponse> postResponses = hotList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
                              .sorted(Comparator.comparingDouble(PostResponse::hotScore).reversed())
                              .skip((long) page * limit)
                              .limit(limit)
@@ -141,7 +186,7 @@ public class PostService {
 
              if(sort.equals("trending")) {
 
-                 String key = "feed:"+"trending:"+1;
+                 String key = "feed:"+"trending:"+limit;
                  String cached =  redisTemplate.opsForValue().get(key);
                  if(cached!=null){
                      return objectMapper.readValue(cached,PostFeedResponse.class);
@@ -152,11 +197,26 @@ public class PostService {
 
                      User user = userRepo.findByEmail(email);
 
+                     // removing the query finding VoteType by user and post for each post
+                     List<Long> postIds = new ArrayList<>();
+                     for(Post post:recentTotal){
+                         postIds.add(post.getId());
+                     }
+
+                     // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
+                     // for all posts
+                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
+                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+
+                     for(PostVote vote:postVotes){
+                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
+                     }
+
                      List<PostResponse> postResponses = recentTotal.stream()
                              .sorted((p1, p2) -> Double.compare(getTrendingScore(p2), getTrendingScore(p1)))
                              .skip((long) page * limit)
                              .limit(limit)
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
                              .toList();
 
                      boolean hasMore = postResponses.size() == limit;
@@ -180,6 +240,7 @@ public class PostService {
 
     public PostResponse createPost(String title, String content, String mediaUrl, String mediaType, String mediaPublicId){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assert authentication != null;
         String email = authentication.getName();
         User user = userRepo.findByEmail(email);
         if(user==null){
@@ -196,7 +257,8 @@ public class PostService {
         if(keys!=null && !keys.isEmpty()){
             redisTemplate.delete(keys);
         }
-        return mapToPostResponse(savedPost,user);
+        HashMap<Long,VoteType> map = new HashMap<>();
+        return mapToPostResponse(savedPost,user,map);
     }
 
     public PostResponse getPostById(Long id){
@@ -204,10 +266,13 @@ public class PostService {
             return new RuntimeException("post not found");
         });
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
         if (authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser")) {
-             User user = userRepo.findByEmail(email);
-             return mapToPostResponse(post,user);
+            String email = authentication.getName();
+            User user = userRepo.findByEmail(email);
+             Optional<PostVote> postVote = postVoteRepo.findByUserAndPost(user,post);
+             HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+            postVote.ifPresent(vote -> voteTypeHashMap.put(id, vote.getVoteType()));
+             return mapToPostResponse(post,user,voteTypeHashMap);
         } else {
              return mapToPostResponseUnauthenticated(post);
         }
@@ -233,7 +298,7 @@ public class PostService {
 
     }
 
-    public PostResponse mapToPostResponse(Post post,User user){
+    public PostResponse mapToPostResponse(Post post,User user,HashMap<Long ,VoteType> voteTypeHashMap){
 
         if(user==null){
             throw new RuntimeException("User not found");
@@ -249,7 +314,8 @@ public class PostService {
 
         long commentCount = post.getCommentCount();
 
-        VoteType voteType = postVoteRepo.findByUserAndPost(user,post).map(PostVote::getVoteType).orElse(null);
+
+        com.jatin.forum.entity.VoteType voteType = voteTypeHashMap.getOrDefault(post.getId(), null);
 
         User user1 = post.getUser();
 

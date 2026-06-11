@@ -4,7 +4,9 @@ import com.jatin.forum.dto.PostResponse;
 import com.jatin.forum.dto.UpdateUsernameRequest;
 import com.jatin.forum.dto.UserResponse;
 import com.jatin.forum.entity.Post;
+import com.jatin.forum.entity.PostVote;
 import com.jatin.forum.entity.User;
+import com.jatin.forum.entity.VoteType;
 import com.jatin.forum.repository.CommentRepo;
 import com.jatin.forum.repository.PostRepo;
 import com.jatin.forum.repository.PostVoteRepo;
@@ -15,7 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
@@ -25,12 +29,14 @@ public class UserService {
     private final PostRepo postRepo;
     private final CommentRepo commentRepo;
     private final PostService postService;
+    private final PostVoteRepo postVoteRepo;
 
     public UserService(UserRepo userRepo, PostRepo postRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, PostService postService) {
         this.userRepo = userRepo;
         this.postRepo = postRepo;
         this.commentRepo = commentRepo;
         this.postService = postService;
+        this.postVoteRepo = postVoteRepo;
     }
 
 
@@ -63,18 +69,33 @@ public class UserService {
 
 
     public List<PostResponse> getPostsSorted(Long id, String sort,User user) {
-        List<PostResponse> posts = postRepo.getPostByUserId(id)
-                .stream()
-                .map(post -> postService.mapToPostResponse(post,user))
+        // removing the query finding VoteType by user and post for each post
+
+        List<Post> posts = postRepo.getPostByUserId(id);
+        List<Long> postIds = new ArrayList<>();
+        for(Post post:posts){
+            postIds.add(post.getId());
+        }
+
+        // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
+        // for all posts
+        List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
+        HashMap<Long, VoteType> voteTypeHashMap = new HashMap<>();
+
+        for(PostVote vote:postVotes){
+            voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
+        }
+        List<PostResponse> postResponses = posts.stream()
+                .map(post -> postService.mapToPostResponse(post,user,voteTypeHashMap))
                 .toList();
 
         if ("top".equals(sort)) {
-            return posts.stream()
+            return postResponses.stream()
                     .sorted(Comparator.comparingLong(PostResponse::voteCount).reversed())
                     .toList();
         }
         // default: new (already sorted by DB insertion order, but sort by createdAt to be explicit)
-        return posts.stream()
+        return postResponses.stream()
                 .sorted(Comparator.comparing(PostResponse::createdAt).reversed())
                 .toList();
     }

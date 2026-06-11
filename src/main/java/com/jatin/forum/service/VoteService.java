@@ -15,8 +15,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.Set;
+
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -84,19 +87,19 @@ public class VoteService {
                postVoteRepo.save(postVote.get());
            }
 
-           // if single vote is made in 2 minutes, count will reset
-           String key = "counter:"+"votes";
-           Long count =  redisTemplate.opsForValue().increment(key);
-
-           if(count!=null && count==1 ){
-               // set ttl on first increment
-               redisTemplate.expire(key,2, TimeUnit.MINUTES);
-           }// if multiple votes are made within that 2 minutes window while it is still active
-           if(count!=null && count>=20){
-               redisTemplate.delete("feed:hot");
-               redisTemplate.delete("feed:trending");
-               redisTemplate.opsForValue().set(key,"0",150,TimeUnit.SECONDS);
+           // if a votes is made -> delete cache , load from db , only that post is updated
+         Set<String> keys = redisTemplate.keys("feed:hot:*");
+         Set<String> keys2 = redisTemplate.keys("feed:trending:*");
+           if(keys!=null && !keys.isEmpty()){
+               redisTemplate.delete(keys);
            }
-         return postService.mapToPostResponse(post.get(),user);
+           if(keys2!=null && !keys2.isEmpty()){
+               redisTemplate.delete(keys2);
+           }
+
+           // new vote type returned
+        HashMap<Long,VoteType> map = new HashMap<>();
+           map.put(postId,voteType);
+         return postService.mapToPostResponse(post.get(),user,map); // fetch from db
 }
 }

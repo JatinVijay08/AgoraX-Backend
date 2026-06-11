@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,4 +24,6 @@ public interface PostVoteRepo extends JpaRepository<PostVote, Long> {
     long countByPostAndCreatedAtAfter(Post post, java.time.Instant createdAt);
 
     List<PostVote> findPostVotesByCreatedAtAfter(Instant createdAtAfter);
+
+    List<PostVote> findByUserAndPostIdIn(User user, Collection<Long> postIds);
 }
