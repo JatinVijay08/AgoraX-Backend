@@ -10,7 +10,6 @@ import com.jatin.forum.repository.UserRepo;
 import com.jatin.forum.exception.InvalidCredentialsException;
 import com.jatin.forum.exception.ResourceNotFoundException;
 import com.jatin.forum.exception.UserAlreadyExistsException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +19,6 @@ import java.util.Map;
 
 @Service
 @Transactional
-@Slf4j
 public class AuthService {
 
 
@@ -51,18 +49,14 @@ public class AuthService {
                 .username(registerRequest.username())
                 .build();
         userRepo.save(user);
-        log.info("[SERVICE] User successfully registered and saved to DB: {}", registerRequest.email());
     }
 
     public LoginResponseDto login(LoginRequest loginRequest) {
-        log.info("[SERVICE] Executing local login logic for email: {}", loginRequest.email());
         User user = userRepo.findByEmail(loginRequest.email());
         if (user == null) {
-            log.warn("[SERVICE] Login failed: User not found with email {}", loginRequest.email());
             throw new ResourceNotFoundException("User not found");
         }
         if(!passwordEncoder.matches(loginRequest.password(), user.getPassword())) {
-            log.warn("[SERVICE] Login failed: Invalid password match for email {}", loginRequest.email());
             throw new InvalidCredentialsException("Invalid Credentials");
         }
 
@@ -70,19 +64,15 @@ public class AuthService {
         user.setLastLoginAt(Instant.now());
         userRepo.save(user);
         String username = user.getUsername();
-        log.info("[SERVICE] Login database update and token creation successful for: {}", loginRequest.email());
         return new LoginResponseDto(token,username);
     }
 
     public LoginResponseDto googleLogin(String idToken){
-        log.info("[SERVICE] Executing Google OAuth login logic...");
         Map<String,Object> payload = googleTokenVerifierService.verify(idToken);
 
         String email  =  (String) payload.get("email");
         String name  = (String) payload.get("name");
         String googleId = (String) payload.get("sub"); // unique user id
-
-        log.info("[SERVICE] Google Token verified. Email: {}, Name: {}, Google ID: {}", email, name, googleId);
 
         User existingUser = userRepo.findByEmail(email);
         if(existingUser!=null){

@@ -7,7 +7,6 @@ import com.jatin.forum.repository.CommentRepo;
 import com.jatin.forum.repository.CommentVoteRepo;
 import com.jatin.forum.repository.PostRepo;
 import com.jatin.forum.repository.UserRepo;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Service
-@Slf4j
 public class CommentService {
 
     private final PostRepo postRepo;
@@ -36,24 +34,19 @@ public class CommentService {
     public CommentResponse CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
-        log.info("[SERVICE] Creating comment on postID: {} by user: {}", postID, email);
         User user = userRepo.findByEmail(email);
         if (user == null) {
-            log.error("[SERVICE] Comment creation failed: User not found with email: {}", email);
             throw new RuntimeException("User not found");
         }
 
         Optional<Post> post = postRepo.findById(postID);
         if (post.isEmpty()) {
-            log.warn("[SERVICE] Comment creation failed: Post not found with ID: {}", postID);
             throw new RuntimeException("Post not found");
         }
         Comment comment = new Comment(createCommentRequest.content(), user, post.get());
 
         if(createCommentRequest.parentId() != null) {
-            log.info("[SERVICE] Finding parent comment with ID: {}", createCommentRequest.parentId());
             Comment parent = commentRepo.findById(createCommentRequest.parentId()).orElseThrow(()-> {
-                log.warn("[SERVICE] Parent comment ID {} not found", createCommentRequest.parentId());
                 return new RuntimeException("Parent comment not found");
             });
             comment.setParentComment(parent);
@@ -63,22 +56,18 @@ public class CommentService {
         long newCommentCount = post.get().getCommentCount();
         post.get().setCommentCount(newCommentCount+1);
         postRepo.save(post.get());
-        log.info("[SERVICE] Comment successfully saved to DB with ID: {}", comment.getId());
         return maptoCommentResponse(comment);
     }
 
     public void deleteComment(Long commentID) {
-        log.info("[SERVICE] Deleting comment ID: {}", commentID);
         Optional<Comment> comment = commentRepo.findById(commentID);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User user = userRepo.findByEmail(email);
         if (comment.isEmpty()) {
-            log.warn("[SERVICE] Comment deletion failed: Comment ID {} not found", commentID);
             throw new RuntimeException("Comment not found");
         }
         if(!comment.get().getUser().getEmail().equals(user.getEmail())) {
-            log.warn("[SERVICE] Comment deletion failed: User {} is not authorized to delete comment owned by {}", email, comment.get().getUser().getEmail());
             throw new RuntimeException("You are not allowed to delete this comment");
         }
         Post post = comment.get().getPost();
