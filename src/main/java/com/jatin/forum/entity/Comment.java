@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.time.Instant;
 
+@Getter
 @Entity
 @Table(name="comments")
 public class Comment {
@@ -33,10 +34,8 @@ public class Comment {
     @JoinColumn(name = "parent_comment_Id")
     private Comment parentComment;
 
-    @Getter
     @Setter
     private long upvotes;
-    @Getter
     @Setter
     private long downvotes;
 
@@ -46,30 +45,6 @@ public class Comment {
         this.content = content;
         this.user = user;
         this.post = post;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public Post getPost() {
-        return post;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Comment getParentComment() {
-        return parentComment;
     }
 
     public void setParentComment(Comment parentComment) {
