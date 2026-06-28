@@ -3,10 +3,7 @@ package com.jatin.forum.service;
 
 
 import com.jatin.forum.dto.PostResponse;
-import com.jatin.forum.entity.Post;
-import com.jatin.forum.entity.PostVote;
-import com.jatin.forum.entity.User;
-import com.jatin.forum.entity.VoteType;
+import com.jatin.forum.entity.*;
 import com.jatin.forum.repository.PostRepo;
 import com.jatin.forum.repository.PostVoteRepo;
 import com.jatin.forum.repository.UserRepo;
@@ -16,7 +13,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -33,13 +29,15 @@ public class VoteService {
     private  final UserRepo userRepo;
     private  final PostRepo postRepo;
     private final PostService postService;
+    private final NotificationService notificationService;
     private final RedisTemplate<String, String> redisTemplate;
 
-    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService, RedisTemplate<String, String> redisTemplate) {
+    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService, NotificationService notificationService, RedisTemplate<String, String> redisTemplate) {
         this.postVoteRepo = postVoteRepo;
         this.userRepo = userRepo;
         this.postRepo = postRepo;
         this.postService = postService;
+        this.notificationService = notificationService;
         this.redisTemplate = redisTemplate;
     }
 
@@ -63,6 +61,9 @@ public class VoteService {
                }
                postVoteRepo.save(postVote1);
                postRepo.save(post.get());
+               if(VoteType.upvote.equals(voteType)) {
+                   notificationService.createNotification(post.get(), user, NotificationType.POST_LIKE);
+               }
            }
            else if(postVote.get().getVoteType().equals(voteType)){
                if(VoteType.upvote.equals(voteType)){
@@ -85,6 +86,10 @@ public class VoteService {
                    post.get().setUpvotesCount(post.get().getUpvotesCount()-1);
                }
                postVoteRepo.save(postVote.get());
+
+               if(VoteType.upvote.equals(voteType)) {
+                   notificationService.createNotification(post.get(), user, NotificationType.POST_LIKE);
+               }
            }
 
            // if a votes is made -> delete cache , load from db , only that post is updated
