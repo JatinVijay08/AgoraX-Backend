@@ -22,5 +22,13 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getNotifications(cursor, limit));
     }
 
+    @PatchMapping("/read-all")
+    public ResponseEntity<Void> markAllNotificationAsRead(){
+        notificationService.markAllNotificationAsRead();
+       return ResponseEntity.noContent().build();
+    }
+
+
+
 
 }

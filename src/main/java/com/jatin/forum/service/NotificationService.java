@@ -5,6 +5,7 @@ import com.jatin.forum.dto.NotificationResponse;
 import com.jatin.forum.entity.*;
 import com.jatin.forum.repository.NotificationRepo;
 import com.jatin.forum.repository.UserRepo;
+import jakarta.transaction.Transactional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -81,6 +82,20 @@ public class NotificationService {
         return new NotificationFeedResponse(responseList,hasMore,lastTimestamp);
 
     }
+
+    @Transactional
+    public void markAllNotificationAsRead(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userRepo.findByEmail(email);
+        if(user==null){
+            throw new IllegalArgumentException("User not found");
+        }
+        Long receiverId = user.getId();
+        notificationRepo.markAllNotificationsAsRead(receiverId);
+
+    }
+
 
 
 
