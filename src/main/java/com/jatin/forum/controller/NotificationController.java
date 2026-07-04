@@ -6,10 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.util.List;
+
 
 @RestController
-@RequestMapping("/api/notification")
+@RequestMapping("/api/notifications")
 public class NotificationController {
 
     private final NotificationService notificationService;
@@ -26,6 +26,11 @@ public class NotificationController {
     public ResponseEntity<Void> markAllNotificationAsRead(){
         notificationService.markAllNotificationAsRead();
        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<Integer> getUnreadNotificationsCount(){
+       return ResponseEntity.ok(notificationService.countUnreadNotifications());
     }
 
 

@@ -4,6 +4,7 @@ import com.jatin.forum.JwtUtil;
 import com.jatin.forum.repository.UserRepo;
 import com.jatin.forum.security.CustomAuthenticationEntryPoint;
 import com.jatin.forum.security.JwtAuthenticationFilter;
+import com.jatin.forum.security.JwtChannelInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -46,7 +47,7 @@ public class SecurityConfig {
                 .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(customAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login","/api/auth/register","/api/auth/google").permitAll().requestMatchers(HttpMethod.GET,"/api/posts", "/api/posts/**","/api/comments/post/{postId}", "/api/users/recent").permitAll().requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/api/auth/login","/api/auth/register","/api/auth/google","/ws/**").permitAll().requestMatchers(HttpMethod.GET,"/api/posts", "/api/posts/**","/api/comments/post/{postId}", "/api/users/recent").permitAll().requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 ).addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -69,6 +70,14 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder(){
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public JwtChannelInterceptor jwtChannelInterceptor(
+            JwtUtil jwtUtil,
+            UserRepo userRepo
+    ){
+        return new JwtChannelInterceptor(jwtUtil,userRepo);
     }
 
 }
