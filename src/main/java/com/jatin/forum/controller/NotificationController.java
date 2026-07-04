@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 
+
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {
@@ -23,14 +24,12 @@ public class NotificationController {
 
     @PatchMapping("/read-all")
     public ResponseEntity<Void> markAllNotificationAsRead(){
-        System.out.println("Patch mapping reached!!!");
         notificationService.markAllNotificationAsRead();
        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/unread-count")
     public ResponseEntity<Integer> getUnreadNotificationsCount(){
-        System.out.println(("Unread count mapping reached!!!"));
        return ResponseEntity.ok(notificationService.countUnreadNotifications());
     }
 

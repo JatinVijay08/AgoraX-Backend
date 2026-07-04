@@ -8,13 +8,12 @@ import com.jatin.forum.repository.NotificationRepo;
 import com.jatin.forum.repository.UserRepo;
 import jakarta.transaction.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
@@ -72,6 +71,11 @@ public class NotificationService {
         return new NotificationCreatedEvent(post.getUser().getEmail(), notificationResponse);
     }
 
+
+            notificationRepo.save(notification);
+        }
+
+    }
 
     private static final int Max_Page_Size = 20;
 
@@ -134,4 +138,6 @@ public class NotificationService {
         Long receiverId = user.getId();
         return notificationRepo.countNotificationByReceiverIdAndReadIsFalse(receiverId, false);
     }
+
+
 }
