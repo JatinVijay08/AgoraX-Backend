@@ -8,9 +8,7 @@ import com.jatin.forum.repository.NotificationRepo;
 import com.jatin.forum.repository.UserRepo;
 import jakarta.transaction.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -72,21 +70,14 @@ public class NotificationService {
     }
 
 
-            notificationRepo.save(notification);
-        }
-
-    }
-
     private static final int Max_Page_Size = 20;
 
-    public NotificationFeedResponse getNotifications(Instant cursor,int limit){
+    public NotificationFeedResponse getNotifications(Instant cursor,int limit) {
         // first fetch the notificationList
         //get Reciever Id
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User user = userRepo.findByEmail(email);
-
-
 
         if(limit<=0){
             throw new IllegalArgumentException("limit can't be less than 0");
