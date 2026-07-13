@@ -26,4 +26,6 @@ public interface PostVoteRepo extends JpaRepository<PostVote, Long> {
     List<PostVote> findPostVotesByCreatedAtAfter(Instant createdAtAfter);
 
     List<PostVote> findByUserAndPostIdIn(User user, Collection<Long> postIds);
+
+    Collection<Long> post(Post post);
 }

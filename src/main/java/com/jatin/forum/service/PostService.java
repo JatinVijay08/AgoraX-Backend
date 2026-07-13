@@ -1,5 +1,7 @@
 package com.jatin.forum.service;
 
+import com.jatin.forum.dto.CachedFeed;
+import com.jatin.forum.dto.CachedPost;
 import com.jatin.forum.dto.PostFeedResponse;
 import com.jatin.forum.dto.PostResponse;
 import com.jatin.forum.entity.Post;
@@ -27,8 +29,6 @@ import java.time.Instant;
 
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 
 @Service
@@ -39,83 +39,90 @@ public class PostService {
     private final CommentRepo commentRepo;
     private final PostRepo postRepo;
     private final RedisTemplate<String,String> redisTemplate;
+    private final FeedCacheService feedCacheService;
     @Autowired
     private ObjectMapper objectMapper;
 
-    public PostService(PostRepo postRepo, UserRepo userRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo,RedisTemplate<String,String> redisTemplate) {
+    public PostService(PostRepo postRepo, UserRepo userRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, RedisTemplate<String,String> redisTemplate, FeedCacheService feedCacheService) {
         this.postRepo = postRepo;
         this.userRepo = userRepo;
         this.postVoteRepo = postVoteRepo;
         this.commentRepo = commentRepo;
         this.redisTemplate = redisTemplate;
+        this.feedCacheService = feedCacheService;
     }
-
 
 
 
     public PostFeedResponse getAllPosts(String sort, int page,int  limit, String cursor){
              Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
              boolean isAuthenticated = authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser");
-        assert authentication != null;
-        String email = authentication.getName();
+             User user;
+             if(isAuthenticated){
+                 String email = authentication.getName();
+                 user = userRepo.findByEmail(email);
+             }
+             else{
+                 user=null;
+             }
              if(sort.equals("new")){
                  // newSections: first page is almost the same for everyone: and can be same for two person for specific time
                  // Rest of the pages can be fetched from databases directly
                  if(cursor==null){
                      // first page,load from cache, and cache reloads from time to time
-                     String key = "feed:"+"new:"+limit;
-
-                     long start = System.currentTimeMillis();
-                     String cached =  redisTemplate.opsForValue().get(key);
-                     System.out.println("Redis get request time:   "+(System.currentTimeMillis()-start));
-
-                     if(cached!=null){
+                     Optional<CachedFeed> cachedPostFeed = feedCacheService.getCachedNewPosts(limit);
+                     if(cachedPostFeed.isPresent()){ // if cache is present-> fetch it
                          // fetch from cache
-                         // deserialize from JSON String
-                         return objectMapper.readValue(cached,PostFeedResponse.class);
+                         // we have to create a PostFeedResponse
+                         // only need VoteType for specific user
+                         CachedFeed cachedFeed = cachedPostFeed.get();
+
+                            List<Long> postIds = new ArrayList<>();
+                            for(CachedPost post:cachedFeed.cachedPostList()){
+                                postIds.add(post.id());
+                            }
+
+                            HashMap<Long,VoteType> voteMap = this.getVoteTypeHashMap(user,postIds);
+
+                         List<PostResponse> postFeedResponseList = cachedFeed.cachedPostList().stream().map(cachedPost -> mapToPostResponseFromCachePost(cachedPost,voteMap)).toList();
+                         boolean hasMore = cachedFeed.hasMore();
+                         String newCursor = cachedFeed.cursor()==null? null : cachedFeed.cursor().toString();
+                         return new PostFeedResponse(postFeedResponseList,newCursor,hasMore);
                      }
                      // first page->not stored in cache->fetch from database->store in cache
                      Instant cursorTime = Instant.now();
 
-                     List<Post> newList = postRepo.findPostNew(cursorTime, PageRequest.of(0, limit));
+                     List<Post> newList = postRepo.findPostNew(cursorTime, PageRequest.of(0, limit+1));
 
-                     User user = userRepo.findByEmail(email);
-
+                     boolean hasMore = newList.size()>limit;
+                     if(hasMore){
+                         // drop a post
+                         newList.removeLast();
+                     }
                      // removing the query finding VoteType by user and post for each post
                      List<Long> postIds = new ArrayList<>();
                      for(Post post:newList){
                          postIds.add(post.getId());
                      }
 
-                     // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
-                     // for all posts
-                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
-                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
-
-                     for(PostVote vote:postVotes){
-                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
-                     }
+                    HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
 
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> mapToPostResponse(post,voteTypeHashMap))
                              .toList();
 
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
-                     boolean hasMore = newList.size() == limit;
-                     PostFeedResponse postFeedResponse = new PostFeedResponse(postResponses, newCursor != null ? newCursor.toString() : null, hasMore);
 
-                         String cacheStringObject = objectMapper.writeValueAsString(postFeedResponse);
-
-                     redisTemplate.opsForValue().set(key, cacheStringObject, 1, TimeUnit.MINUTES);
-
-                     return postFeedResponse;
+                     // store cache whether authenticated or not
+                     List<CachedPost> cachedPostList = newList.stream().map(this::mapToCachedPostFromPost).toList();
+                     feedCacheService.setCachedNewPosts(cachedPostList,hasMore,newCursor,limit);
+                     return new PostFeedResponse(postResponses, newCursor != null ? newCursor.toString() : null, hasMore);
                  }
                  else{
 
                      // cursor is not null->fetch normally-> no cache ,cause cursor can be different for different people
                      Instant cursorTime = Instant.parse(cursor);
-                     List<Post> newList = postRepo.findPostNew(cursorTime, PageRequest.of(0, limit));
-                     User user = userRepo.findByEmail(email);
+                     List<Post> newList = postRepo.findPostNew(cursorTime, PageRequest.of(0, limit+1));
 
                      // removing the query finding VoteType by user and post for each post
                      List<Long> postIds = new ArrayList<>();
@@ -125,15 +132,10 @@ public class PostService {
 
                      // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
                      // for all posts
-                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
-                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
-
-                     for(PostVote vote:postVotes){
-                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
-                     }
+                     HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
 
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
+                             .map(post -> mapToPostResponse(post,voteTypeHashMap))
                              .toList();
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
                      boolean hasMore = newList.size() == limit;
@@ -142,100 +144,132 @@ public class PostService {
 
              }
              if(sort.equals("hot")) {
-                 String key = "feed:"+"hot:"+limit;
                  // check cache keys->
-                 String cached =  redisTemplate.opsForValue().get(key);
-                 if(cached!=null){
-                     return objectMapper.readValue(cached,PostFeedResponse.class);
-                 }else{
-                     // cache is null
-                     // hit the database
-                     Instant sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS);
-                     List<Post> hotList = postRepo.findPostRecent(sevenDaysAgo);
-                     User user = userRepo.findByEmail(email);
-
-                     // removing the query finding VoteType by user and post for each post
-                     List<Long> postIds = new ArrayList<>();
-                     for(Post post:hotList){
-                         postIds.add(post.getId());
+                  // only 0th page is being cached,so only it should be fetched
+                 if(page==0){
+                     Optional<CachedFeed> cachedFeed = feedCacheService.getCachedHotPosts(limit);
+                     if(cachedFeed.isPresent()){ // if not null->return cache
+                       CachedFeed cachedFeedFinal = cachedFeed.get();
+                       List<Long> postIds = new ArrayList<>();
+                       for(CachedPost post:cachedFeedFinal.cachedPostList()) {
+                         postIds.add(post.id());
+                       }
+                       HashMap<Long, VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user, postIds);
+                       List<PostResponse> postResponsesList = cachedFeedFinal.cachedPostList().stream().map(post -> mapToPostResponseFromCachePost(post,voteTypeHashMap)).toList();
+                       boolean hasMore = cachedFeedFinal.hasMore();
+                       String newCursor = cachedFeedFinal.cursor()==null ? null : cachedFeedFinal.cursor().toString();
+                       return new  PostFeedResponse(postResponsesList, newCursor, hasMore);
                      }
-
-                     // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
-                     // for all posts
-                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
-                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
-
-                     for(PostVote vote:postVotes){
-                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
-                     }
-
-                     List<PostResponse> postResponses = hotList.stream()
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
-                             .sorted(Comparator.comparingDouble(PostResponse::hotScore).reversed())
-                             .skip((long) page * limit)
-                             .limit(limit)
-                             .toList();
-                     boolean hasMore = postResponses.size() == limit;
-                    PostFeedResponse postFeedResponse = new PostFeedResponse(postResponses, null, hasMore);
-                    String cacheStringObject = objectMapper.writeValueAsString(postFeedResponse);
-                    int jitter = ThreadLocalRandom.current().nextInt(0, 30);
-                    redisTemplate.opsForValue().set(key, cacheStringObject, 120+jitter, TimeUnit.SECONDS);
-                    return postFeedResponse;
                  }
+                         // if page is not zero or if cache doesn't exist:
+                         // cache is null
+                         // hit the database
+                         Instant sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS);
+                         List<Post> hotList = postRepo.findPostRecent(sevenDaysAgo);
+
+                         List<Long> postIds = new ArrayList<>();
+                         for(Post post:hotList){
+                             postIds.add(post.getId());
+                         }
+                         HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
+
+                         List<Post> hotFeedPage = hotList.stream().sorted(Comparator.comparing(this::getHotScorePost).reversed())
+                                 .skip((long)page*limit)
+                                 .limit(limit)
+                                 .toList();
+
+                         List<PostResponse> postResponseList = hotFeedPage.stream().map(post -> mapToPostResponse(post,voteTypeHashMap)).toList();
+                         boolean hasMore = hotList.size() > (page+1)*limit;
+                         PostFeedResponse postFeedResponse = new PostFeedResponse(postResponseList, null, hasMore);
+                         // setTheFeed cache
+                         List<CachedPost> cachedPostList = hotFeedPage.stream().map(this::mapToCachedPostFromPost).toList();
+                         if(!(page > 0)){ // wont cache future pages
+                             feedCacheService.setCachedHotPosts(cachedPostList,hasMore,null,limit);
+                         }
+                         return postFeedResponse;
              }
 
-             if(sort.equals("trending")) {
 
-                 String key = "feed:"+"trending:"+limit;
-                 String cached =  redisTemplate.opsForValue().get(key);
-                 if(cached!=null){
-                     return objectMapper.readValue(cached,PostFeedResponse.class);
-                 }
-                 else{
+
+             if(sort.equals("trending")) {
+                 if(page==0){
+                   Optional<CachedFeed> cachedFeedOptional = feedCacheService.getCachedTrendingPosts(limit);
+                   if(cachedFeedOptional.isPresent()){
+                      CachedFeed cachedFeed = cachedFeedOptional.get();
+                      ArrayList<Long> postIds = new  ArrayList<>();
+                      for(CachedPost cachedPost:cachedFeed.cachedPostList()){
+                          postIds.add(cachedPost.id());
+                      }
+                      HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
+
+                     List<PostResponse> postResponses = cachedFeed.cachedPostList().stream().map(post -> mapToPostResponseFromCachePost(post,voteTypeHashMap)).toList();
+
+                     boolean hasMore = cachedFeed.hasMore();
+                     String newCursor = cachedFeed.cursor() == null ? null : cachedFeed.cursor().toString();
+                     return new PostFeedResponse(postResponses, null, hasMore);
+                   }
+                }
                      Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
                      List<Post> recentTotal = postRepo.findPostRecent(twentyFourHoursAgo);
 
-                     User user = userRepo.findByEmail(email);
+                         // removing the query finding VoteType by user and post for each post
+                         List<Long> postIds = new ArrayList<>();
+                         for(Post post:recentTotal){
+                             postIds.add(post.getId());
+                         }
 
-                     // removing the query finding VoteType by user and post for each post
-                     List<Long> postIds = new ArrayList<>();
-                     for(Post post:recentTotal){
-                         postIds.add(post.getId());
-                     }
+                     HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
 
-                     // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
-                     // for all posts
-                     List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
-                     HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
-
-                     for(PostVote vote:postVotes){
-                         voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
-                     }
-
-                     List<PostResponse> postResponses = recentTotal.stream()
-                             .sorted((p1, p2) -> Double.compare(getTrendingScore(p2), getTrendingScore(p1)))
-                             .skip((long) page * limit)
+                     List<Post> trendingFeedPage = recentTotal
+                             .stream()
+                             .sorted((p1,p2)->Double.compare(getTrendingScore(p2),getTrendingScore(p1)))
+                             .skip((long)page*limit)
                              .limit(limit)
-                             .map(post -> isAuthenticated ? mapToPostResponse(post,user,voteTypeHashMap) : mapToPostResponseUnauthenticated(post))
                              .toList();
 
-                     boolean hasMore = postResponses.size() == limit;
+                     List<PostResponse> postResponses = trendingFeedPage.stream().map(post -> mapToPostResponse(post,voteTypeHashMap)).toList();
+                     boolean hasMore = recentTotal.size() > (page+1)*limit;
                      PostFeedResponse postFeedResponse = new  PostFeedResponse(postResponses, null, hasMore);
-                     String cachedObjectString = objectMapper.writeValueAsString(postFeedResponse);
-                     int jitter = ThreadLocalRandom.current().nextInt(0, 30);
-                     redisTemplate.opsForValue().set(key, cachedObjectString, 120+jitter, TimeUnit.SECONDS);
+                     List<CachedPost> cachedPostList = trendingFeedPage.stream().map(this::mapToCachedPostFromPost).toList();
+                     if(!(page>0)) {
+                         feedCacheService.setCachedTrendingPosts(cachedPostList, hasMore, null, limit);
+                     }
                      return postFeedResponse;
-                 }
 
              }
              return new PostFeedResponse(List.of(), null, false);
     }
+
+    private HashMap<Long,VoteType> getVoteTypeHashMap(User user,List<Long> postIds){
+        if(user==null){
+            return new  HashMap<>();
+        }
+        List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
+        HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+        for(PostVote postVote:postVotes){
+            voteTypeHashMap.put(postVote.getPost().getId(), postVote.getVoteType());
+        }
+        return voteTypeHashMap;
+    }
+
 
     private double getTrendingScore(Post post) {
         Instant sixHoursAgo = Instant.now().minus(6, ChronoUnit.HOURS);
         long recentVotes = postVoteRepo.countByPostAndCreatedAtAfter(post, sixHoursAgo);
         long recentComments = commentRepo.countByPostAndCreatedAtAfter(post, sixHoursAgo);
         return recentVotes + (recentComments * 2);
+    }
+
+    private double getHotScoreFromValue(long votes,long hoursOld){
+        return votes/Math.pow(hoursOld+2,1.5);
+    }
+
+    private double getHotScorePost(Post post){
+        long upvotes = post.getUpvotesCount();
+        long downvotes = post.getDownvotesCount();
+        long votes = upvotes-downvotes;
+        long hoursOld = Duration.between(post.getCreatedAt(),Instant.now()).toHours();
+        return getHotScoreFromValue(votes,hoursOld);
     }
 
     public PostResponse createPost(String title, String content, String mediaUrl, String mediaType, String mediaPublicId){
@@ -258,23 +292,23 @@ public class PostService {
             redisTemplate.delete(keys);
         }
         HashMap<Long,VoteType> map = new HashMap<>();
-        return mapToPostResponse(savedPost,user,map);
+        return mapToPostResponse(savedPost,map);
     }
 
     public PostResponse getPostById(Long id){
         Post post = postRepo.findById(id).orElseThrow(()-> {
             return new RuntimeException("post not found");
         });
+        HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser")) {
             String email = authentication.getName();
             User user = userRepo.findByEmail(email);
              Optional<PostVote> postVote = postVoteRepo.findByUserAndPost(user,post);
-             HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
             postVote.ifPresent(vote -> voteTypeHashMap.put(id, vote.getVoteType()));
-             return mapToPostResponse(post,user,voteTypeHashMap);
+             return mapToPostResponse(post,voteTypeHashMap);
         } else {
-             return mapToPostResponseUnauthenticated(post);
+             return mapToPostResponse(post,voteTypeHashMap);
         }
     }
 
@@ -298,15 +332,8 @@ public class PostService {
 
     }
 
-    public PostResponse mapToPostResponse(Post post,User user,HashMap<Long ,VoteType> voteTypeHashMap){
-
-        if(user==null){
-            throw new RuntimeException("User not found");
-        }
-
-
+    public PostResponse mapToPostResponse(Post post,HashMap<Long ,VoteType> voteTypeHashMap){
         long upvotes = post.getUpvotesCount();
-
 
         long downvotes = post.getDownvotesCount();
 
@@ -320,23 +347,48 @@ public class PostService {
         User user1 = post.getUser();
 
         long hoursOld = Duration.between(post.getCreatedAt(),Instant.now()).toHours();
-        double hotScore = votes/Math.pow(hoursOld+2,1.5);
+        double hotScore = getHotScoreFromValue(votes,hoursOld);
 
         return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, voteType,post.getCreatedAt(),hotScore, post.getMediaUrl(), post.getMediaType());
 
     }
 
-    public PostResponse mapToPostResponseUnauthenticated(Post post){
-        long upvotes = post.getUpvotesCount();
-        long downvotes = post.getDownvotesCount();
+    public CachedPost mapToCachedPostFromPost(Post post){
+          return new CachedPost(post.getId(),
+                  post.getTitle(),
+                  post.getContent(),
+                  post.getCreatedAt(),
+                  post.getMediaUrl(),
+                  post.getMediaType(),
+                  post.getMediaPublicId(),
+                  post.getUser().getUsername(),
+                  post.getCommentCount(),
+                  post.getUpvotesCount(),
+                  post.getDownvotesCount());
+    }
+
+    public PostResponse mapToPostResponseFromCachePost(CachedPost  cachedPost,HashMap<Long ,VoteType> voteTypeHashMap){
+
+
+        long upvotes = cachedPost.upvotesCount();
+
+
+        long downvotes = cachedPost.downvotesCount();
 
         long votes = upvotes-downvotes;
-        long commentCount = post.getCommentCount();
-        User user1 = post.getUser();
-        long hoursOld = Duration.between(post.getCreatedAt(),Instant.now()).toHours();
-        double hotScore = votes/Math.pow(hoursOld+2,1.5);
 
-        return new PostResponse(user1.getUsername(),post.getId(), post.getTitle(), post.getContent(), votes,commentCount, null,post.getCreatedAt(),hotScore, post.getMediaUrl(), post.getMediaType());
+        long commentCount = cachedPost.commentCount();
+
+
+        com.jatin.forum.entity.VoteType voteType = voteTypeHashMap.getOrDefault(cachedPost.id(), null);
+
+       String username = cachedPost.creatorUsername();
+
+        long hoursOld = Duration.between(cachedPost.createdAt(),Instant.now()).toHours();
+        double hotScore = getHotScoreFromValue(votes,hoursOld);
+
+        return new PostResponse(username,cachedPost.id(), cachedPost.title(), cachedPost.content(), votes,commentCount, voteType,cachedPost.createdAt(),hotScore, cachedPost.mediaUrl(), cachedPost.mediaType());
+
     }
 
 }
