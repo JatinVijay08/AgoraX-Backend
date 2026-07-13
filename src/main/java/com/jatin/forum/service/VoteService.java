@@ -105,6 +105,6 @@ public class VoteService {
            // new vote type returned
         HashMap<Long,VoteType> map = new HashMap<>();
            map.put(postId,voteType);
-         return postService.mapToPostResponse(post.get(),user,map); // fetch from db
+         return postService.mapToPostResponse(post.get(),map); // fetch from db
 }
 }

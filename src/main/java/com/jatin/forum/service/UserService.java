@@ -86,7 +86,7 @@ public class UserService {
             voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
         }
         List<PostResponse> postResponses = posts.stream()
-                .map(post -> postService.mapToPostResponse(post,user,voteTypeHashMap))
+                .map(post -> postService.mapToPostResponse(post,voteTypeHashMap))
                 .toList();
 
         if ("top".equals(sort)) {
