@@ -49,7 +49,7 @@ public class NotificationService {
             notification.setType(notificationType);
            Notification saved = notificationRepo.save(notification); // this returns a managed entity
 
-            NotificationCreatedEvent notificationCreatedEvent = getNotificationCreatedEvent(post, creator, saved);
+            NotificationCreatedEvent notificationCreatedEvent = getNotificationCreatedEvent(post.getUser(), creator, saved);
             // Event Published
             applicationEventPublisher.publishEvent(notificationCreatedEvent);
 
@@ -57,7 +57,39 @@ public class NotificationService {
 
     }
 
-    private static NotificationCreatedEvent getNotificationCreatedEvent(Post post, User creator, Notification saved) {
+    @Transactional
+    public void createCommentNotification(Post post, User creator, Comment comment) {
+        if (!post.getUser().getId().equals(creator.getId())) {
+            Notification notification = new Notification();
+            notification.setCreatorId(creator.getId());
+            notification.setReceiverId(post.getUser().getId());
+            notification.setPostId(post.getId());
+            notification.setCommentId(comment.getId());
+            notification.setType(NotificationType.POST_COMMENT);
+            Notification saved = notificationRepo.save(notification);
+
+            NotificationCreatedEvent event = getNotificationCreatedEvent(post.getUser(), creator, saved);
+            applicationEventPublisher.publishEvent(event);
+        }
+    }
+
+    @Transactional
+    public void createReplyNotification(Post post, User creator, Comment comment, Comment parentComment) {
+        if (!parentComment.getUser().getId().equals(creator.getId())) {
+            Notification notification = new Notification();
+            notification.setCreatorId(creator.getId());
+            notification.setReceiverId(parentComment.getUser().getId());
+            notification.setPostId(post.getId());
+            notification.setCommentId(comment.getId());
+            notification.setType(NotificationType.COMMENT_REPLY);
+            Notification saved = notificationRepo.save(notification);
+
+            NotificationCreatedEvent event = getNotificationCreatedEvent(parentComment.getUser(), creator, saved);
+            applicationEventPublisher.publishEvent(event);
+        }
+    }
+
+    private static NotificationCreatedEvent getNotificationCreatedEvent(User receiver, User creator, Notification saved) {
         NotificationResponse notificationResponse = new NotificationResponse
                 (creator.getUsername(),
                   saved.getType(),
@@ -67,7 +99,7 @@ public class NotificationService {
                         saved.getCommentId()
                         );
 
-        return new NotificationCreatedEvent(post.getUser().getEmail(), notificationResponse);
+        return new NotificationCreatedEvent(receiver.getEmail(), notificationResponse);
     }
 
 

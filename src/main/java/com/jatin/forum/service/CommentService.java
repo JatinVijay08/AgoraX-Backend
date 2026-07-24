@@ -24,14 +24,16 @@ public class CommentService {
     private final UserRepo userRepo;
     private final FeedCacheService feedCacheService;
     private final CurrentUserService currentUserService;
+    private final NotificationService notificationService;
 
-    public CommentService(PostRepo postRepo, CommentRepo commentRepo, CommentVoteRepo commentVoteRepo, UserRepo userRepo, FeedCacheService feedCacheService, CurrentUserService currentUserService) {
+    public CommentService(PostRepo postRepo, CommentRepo commentRepo, CommentVoteRepo commentVoteRepo, UserRepo userRepo, FeedCacheService feedCacheService, CurrentUserService currentUserService, NotificationService notificationService) {
         this.postRepo = postRepo;
         this.commentRepo = commentRepo;
         this.commentVoteRepo = commentVoteRepo;
         this.userRepo = userRepo;
         this.feedCacheService = feedCacheService;
         this.currentUserService = currentUserService;
+        this.notificationService = notificationService;
     }
 
     public CommentResponse CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
@@ -48,8 +50,12 @@ public class CommentService {
                 return new RuntimeException("Parent comment not found");
             });
             comment.setParentComment(parent);
+            commentRepo.save(comment);
+            notificationService.createReplyNotification(post.get(), user, comment, parent);
+        } else {
+            commentRepo.save(comment);
+            notificationService.createCommentNotification(post.get(), user, comment);
         }
-        commentRepo.save(comment);
 
         long newCommentCount = post.get().getCommentCount();
         post.get().setCommentCount(newCommentCount+1);
