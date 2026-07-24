@@ -8,6 +8,7 @@ import com.jatin.forum.service.CommentVoteService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/comments")
@@ -24,6 +25,7 @@ public class CommentController {
     }
 
     @PostMapping("/post/{postId}")
+    @ResponseStatus(HttpStatus.CREATED)
     public CommentResponse addComment(@PathVariable("postId") Long postId, @RequestBody CreateCommentRequest createCommentRequest) {
 
         return commentService.CreateComment(postId, createCommentRequest);

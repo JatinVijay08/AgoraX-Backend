@@ -2,7 +2,7 @@ package com.jatin.forum.controller;
 
 import com.jatin.forum.dto.NotificationFeedResponse;
 import com.jatin.forum.service.NotificationService;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -18,19 +18,19 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<NotificationFeedResponse> getNotifications(@RequestParam("limit") int limit,@RequestParam(value = "cursor",required = false) Instant cursor){
-        return ResponseEntity.ok(notificationService.getNotifications(cursor, limit));
+    public NotificationFeedResponse getNotifications(@RequestParam("limit") int limit,@RequestParam(value = "cursor",required = false) Instant cursor){
+        return notificationService.getNotifications(cursor, limit);
     }
 
     @PatchMapping("/read-all")
-    public ResponseEntity<Void> markAllNotificationAsRead(){
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void markAllNotificationAsRead(){
         notificationService.markAllNotificationAsRead();
-       return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/unread-count")
-    public ResponseEntity<Integer> getUnreadNotificationsCount(){
-       return ResponseEntity.ok(notificationService.countUnreadNotifications());
+    public Integer getUnreadNotificationsCount(){
+       return notificationService.countUnreadNotifications();
     }
 
 

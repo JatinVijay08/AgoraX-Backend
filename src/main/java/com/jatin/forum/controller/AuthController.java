@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 @RestController
 @RequestMapping("api/auth")
@@ -26,27 +27,19 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest registerRequest) {
+    @ResponseStatus(HttpStatus.CREATED)
+    public String register(@Valid @RequestBody RegisterRequest registerRequest) {
         authService.register(registerRequest);
-        return ResponseEntity.ok("User registered successfully");
+        return "User registered successfully";
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequest loginRequest) {
-
-        LoginResponseDto loginResponseDto = authService.login(loginRequest);
-
-        return ResponseEntity.ok(loginResponseDto);
+    public LoginResponseDto login(@Valid @RequestBody LoginRequest loginRequest) {
+        return authService.login(loginRequest);
     }
 
     @PostMapping("/google")
-    public ResponseEntity<LoginResponseDto> googleLogin(@Valid @RequestBody GoogleAuthRequest googleAuthRequest) {
-
-        try {
-            LoginResponseDto response = authService.googleLogin(googleAuthRequest.idToken());
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new LoginResponseDto(null, e.getMessage()));
-        }
+    public LoginResponseDto googleLogin(@Valid @RequestBody GoogleAuthRequest googleAuthRequest) {
+        return authService.googleLogin(googleAuthRequest.idToken());
     }
 }

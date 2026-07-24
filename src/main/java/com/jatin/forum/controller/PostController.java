@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -37,6 +38,7 @@ public class PostController {
     }
 
     @PostMapping(consumes = "multipart/form-data")
+    @ResponseStatus(HttpStatus.CREATED)
     public PostResponse createPost(
             @RequestParam("title") String title,
             @RequestParam("content") String content,
