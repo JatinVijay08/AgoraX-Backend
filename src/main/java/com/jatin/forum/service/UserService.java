@@ -28,14 +28,14 @@ public class UserService {
     private final UserRepo userRepo;
     private final PostRepo postRepo;
     private final CommentRepo commentRepo;
-    private final PostService postService;
+    private final PostMapper postMapper;
     private final PostVoteRepo postVoteRepo;
 
-    public UserService(UserRepo userRepo, PostRepo postRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, PostService postService) {
+    public UserService(UserRepo userRepo, PostRepo postRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, PostMapper postMapper) {
         this.userRepo = userRepo;
         this.postRepo = postRepo;
         this.commentRepo = commentRepo;
-        this.postService = postService;
+        this.postMapper = postMapper;
         this.postVoteRepo = postVoteRepo;
     }
 
@@ -86,7 +86,7 @@ public class UserService {
             voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
         }
         List<PostResponse> postResponses = posts.stream()
-                .map(post -> postService.mapToPostResponse(post,voteTypeHashMap))
+                .map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap))
                 .toList();
 
         if ("top".equals(sort)) {

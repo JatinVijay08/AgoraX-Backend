@@ -27,16 +27,16 @@ public class VoteService {
     private  final PostVoteRepo postVoteRepo;
     private  final UserRepo userRepo;
     private  final PostRepo postRepo;
-    private final PostService postService;
+    private final PostMapper postMapper;
     private final NotificationService notificationService;
     private final FeedCacheService feedCacheService;
     private final CurrentUserService currentUserService;
 
-    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService, NotificationService notificationService, FeedCacheService feedCacheService, CurrentUserService currentUserService) {
+    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostMapper postMapper, NotificationService notificationService, FeedCacheService feedCacheService, CurrentUserService currentUserService) {
         this.postVoteRepo = postVoteRepo;
         this.userRepo = userRepo;
         this.postRepo = postRepo;
-        this.postService = postService;
+        this.postMapper = postMapper;
         this.notificationService = notificationService;
         this.feedCacheService = feedCacheService;
         this.currentUserService = currentUserService;
@@ -103,6 +103,6 @@ public class VoteService {
            // new vote type returned
          HashMap<Long,VoteType> map = new HashMap<>();
            map.put(postId,voteType);
-         return postService.mapToPostResponse(currentPost,map); // fetch from db
+         return postMapper.mapToPostResponse(currentPost,map); // fetch from db
 }
 }
