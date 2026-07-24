@@ -24,11 +24,14 @@ public class CommentService {
     private final CommentRepo commentRepo;
     private final CommentVoteRepo commentVoteRepo;
     private final UserRepo userRepo;
-    public CommentService(PostRepo postRepo, CommentRepo commentRepo, CommentVoteRepo commentVoteRepo, UserRepo userRepo) {
+    private final FeedCacheService feedCacheService;
+
+    public CommentService(PostRepo postRepo, CommentRepo commentRepo, CommentVoteRepo commentVoteRepo, UserRepo userRepo, FeedCacheService feedCacheService) {
         this.postRepo = postRepo;
         this.commentRepo = commentRepo;
         this.commentVoteRepo = commentVoteRepo;
         this.userRepo = userRepo;
+        this.feedCacheService = feedCacheService;
     }
 
     public CommentResponse CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
@@ -56,6 +59,14 @@ public class CommentService {
         long newCommentCount = post.get().getCommentCount();
         post.get().setCommentCount(newCommentCount+1);
         postRepo.save(post.get());
+
+        // increment trending activity
+        long trendingCount = feedCacheService.incrementTrendingActivity();
+        if(feedCacheService.shouldEvictTrending(trendingCount)){
+            feedCacheService.resetTrendingActivity();
+            feedCacheService.evictTrendingFeed(10);
+        }
+
         return maptoCommentResponse(comment);
     }
 
@@ -74,6 +85,9 @@ public class CommentService {
         post.setCommentCount(post.getCommentCount()-1);
         postRepo.save(post);
         commentRepo.delete(comment.get());
+
+        feedCacheService.evictTrendingFeed(10);
+        feedCacheService.resetTrendingActivity();
 
 
     }
@@ -135,5 +149,7 @@ public class CommentService {
         VoteType voteType = commentVote.map(CommentVote::getVoteType).orElse(null);
         return new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
     }
+
+
 
 }

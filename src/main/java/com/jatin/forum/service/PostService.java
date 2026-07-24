@@ -97,7 +97,7 @@ public class PostService {
                      boolean hasMore = newList.size()>limit;
                      if(hasMore){
                          // drop a post
-                         newList.removeLast();
+                         newList.remove(newList.size()-1);
                      }
                      // removing the query finding VoteType by user and post for each post
                      List<Long> postIds = new ArrayList<>();
@@ -287,10 +287,15 @@ public class PostService {
 
         Post savedPost = postRepo.save(post);
 
-        Set<String> keys = redisTemplate.keys("feed:*");
-        if(keys!=null && !keys.isEmpty()){
-            redisTemplate.delete(keys);
-        }
+        feedCacheService.incrementNewActivity();
+
+            feedCacheService.evictNewFeed(10);
+            feedCacheService.resetNewActivity();
+
+            // increment counter for hot and trending keys
+            feedCacheService.incrementTrendingActivity();
+            feedCacheService.incrementHotActivity();
+
         HashMap<Long,VoteType> map = new HashMap<>();
         return mapToPostResponse(savedPost,map);
     }
@@ -329,6 +334,13 @@ public class PostService {
         postVoteRepo.deleteByPostId(postId);
         commentRepo.deleteByPostId(postId);
         postRepo.deleteById(postId);
+
+        feedCacheService.evictNewFeed(10);
+        feedCacheService.resetNewActivity();
+        feedCacheService.evictHotFeed(10);
+        feedCacheService.resetHotActivity();
+        feedCacheService.evictTrendingFeed(10);
+        feedCacheService.resetTrendingActivity();
 
     }
 

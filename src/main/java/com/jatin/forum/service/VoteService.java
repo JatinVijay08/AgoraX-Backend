@@ -2,6 +2,7 @@ package com.jatin.forum.service;
 
 
 
+import com.jatin.forum.dto.CachedFeed;
 import com.jatin.forum.dto.PostResponse;
 import com.jatin.forum.entity.*;
 import com.jatin.forum.repository.PostRepo;
@@ -30,15 +31,15 @@ public class VoteService {
     private  final PostRepo postRepo;
     private final PostService postService;
     private final NotificationService notificationService;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final FeedCacheService feedCacheService;
 
-    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService, NotificationService notificationService, RedisTemplate<String, String> redisTemplate) {
+    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService, NotificationService notificationService, FeedCacheService feedCacheService) {
         this.postVoteRepo = postVoteRepo;
         this.userRepo = userRepo;
         this.postRepo = postRepo;
         this.postService = postService;
         this.notificationService = notificationService;
-        this.redisTemplate = redisTemplate;
+        this.feedCacheService = feedCacheService;
     }
 
     public PostResponse voteOnPost(Long postId, VoteType voteType) {
@@ -92,14 +93,16 @@ public class VoteService {
                }
            }
 
-           // if a votes is made -> delete cache , load from db , only that post is updated
-         Set<String> keys = redisTemplate.keys("feed:hot:*");
-         Set<String> keys2 = redisTemplate.keys("feed:trending:*");
-           if(keys!=null && !keys.isEmpty()){
-               redisTemplate.delete(keys);
+           // if a votes is made -> INCREASE ACTIVITY ON HOT AND TRENDING FEED ACTIVITY KEYS
+           long hotCount = feedCacheService.incrementHotActivity();
+           long trendingCount = feedCacheService.incrementTrendingActivity();
+           if(feedCacheService.shouldEvictHot(hotCount)){
+               feedCacheService.evictHotFeed(10);
+               feedCacheService.resetHotActivity();
            }
-           if(keys2!=null && !keys2.isEmpty()){
-               redisTemplate.delete(keys2);
+           if(feedCacheService.shouldEvictTrending(trendingCount)){
+               feedCacheService.resetTrendingActivity();
+               feedCacheService.evictTrendingFeed(10);
            }
 
            // new vote type returned
