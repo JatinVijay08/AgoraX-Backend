@@ -89,15 +89,15 @@ public class VoteService {
            }
 
            // if a votes is made -> INCREASE ACTIVITY ON HOT AND TRENDING FEED ACTIVITY KEYS
-           long hotCount = feedCacheService.incrementHotActivity();
-           long trendingCount = feedCacheService.incrementTrendingActivity();
-           if(feedCacheService.shouldEvictHot(hotCount)){
-               feedCacheService.evictHotFeed(10);
-               feedCacheService.resetHotActivity();
+           long hotCount = feedCacheService.incrementActivity(FeedCacheService.TYPE_HOT);
+           long trendingCount = feedCacheService.incrementActivity(FeedCacheService.TYPE_TRENDING);
+           if(feedCacheService.shouldEvict(FeedCacheService.TYPE_HOT, hotCount)){
+               feedCacheService.evictFeed(FeedCacheService.TYPE_HOT, 10);
+               feedCacheService.resetActivity(FeedCacheService.TYPE_HOT);
            }
-           if(feedCacheService.shouldEvictTrending(trendingCount)){
-               feedCacheService.resetTrendingActivity();
-               feedCacheService.evictTrendingFeed(10);
+           if(feedCacheService.shouldEvict(FeedCacheService.TYPE_TRENDING, trendingCount)){
+               feedCacheService.resetActivity(FeedCacheService.TYPE_TRENDING);
+               feedCacheService.evictFeed(FeedCacheService.TYPE_TRENDING, 10);
            }
 
            // new vote type returned

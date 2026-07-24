@@ -14,11 +14,14 @@ import java.util.Optional;
 
 @Service
 public class FeedCacheService {
+    public static final String TYPE_NEW = "new";
+    public static final String TYPE_HOT = "hot";
+    public static final String TYPE_TRENDING = "trending";
+
     private final RedisTemplate<String, CachedFeed> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
-    private static final Duration NEW_FEED_TTL =  Duration.ofMinutes(2);
-    private static final Duration HOT_FEED_TTL =   Duration.ofMinutes(2);
-    private static final Duration TRENDING_FEED_TTL = Duration.ofMinutes(2);
+    private static final Duration FEED_TTL = Duration.ofMinutes(2);
+    
     private static final int NEW_THRESHOLD = 1;
     private static final int HOT_THRESHOLD = 10;
     private static final int TRENDING_THRESHOLD = 10;
@@ -28,105 +31,41 @@ public class FeedCacheService {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
-    public Optional<CachedFeed> getCachedNewPosts(int limit){
-        return Optional.ofNullable(redisTemplate.opsForValue().get(getNewKey(limit)));
+    private String getFeedKey(String type, int limit) {
+        return "feed:" + type + ":size:" + limit;
     }
 
-    public Optional<CachedFeed> getCachedHotPosts(int limit){
-        return Optional.ofNullable(redisTemplate.opsForValue().get(getHotKey(limit)));
+    private String getActivityKey(String type) {
+        return "feed:" + type + ":activity";
     }
 
-    public Optional<CachedFeed> getCachedTrendingPosts(int limit){
-        return Optional.ofNullable(redisTemplate.opsForValue().get(getTrendingKey(limit)));
+    public Optional<CachedFeed> getCachedFeed(String type, int limit) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(getFeedKey(type, limit)));
     }
 
-
-    private String getTrendingKey(int limit){
-        return "feed:"+"trending:"+"size:"+limit;
-    }
-
-    private String getHotKey(int limit){
-        return "feed:"+"hot:"+"size:"+limit;
-    }
-
-    private String getNewKey(int limit){
-        return "feed:"+"new:"+"size:"+limit;
-    }
-
-    private String getNewActivityKey(){
-        return "feed:new:activity";
-    }
-
-    private String getHotActivityKey(){
-        return "feed:hot:activity";
-    }
-
-    private String getTrendingActivityKey(){
-        return "feed:trending:activity";
-    }
-
-    public void setCachedNewPosts(List<CachedPost> cachedPosts, boolean hasMore, Instant cursor,int limit){
+    public void setCachedFeed(String type, List<CachedPost> cachedPosts, boolean hasMore, Instant cursor, int limit) {
         CachedFeed cachedFeed = new CachedFeed(cachedPosts, hasMore, cursor);
-        redisTemplate.opsForValue().set(getNewKey(limit),cachedFeed,NEW_FEED_TTL);
+        redisTemplate.opsForValue().set(getFeedKey(type, limit), cachedFeed, FEED_TTL);
     }
 
-    public void  setCachedHotPosts(List<CachedPost> cachedPosts, boolean hasMore, Instant cursor,int limit){
-        CachedFeed cachedFeed = new CachedFeed(cachedPosts, hasMore, cursor);
-        redisTemplate.opsForValue().set(getHotKey(limit),cachedFeed,HOT_FEED_TTL);
+    public void evictFeed(String type, int limit) {
+        redisTemplate.delete(getFeedKey(type, limit));
     }
 
-    public void setCachedTrendingPosts(List<CachedPost> cachedPosts, boolean hasMore, Instant cursor,int limit){
-        CachedFeed cachedFeed = new CachedFeed(cachedPosts, hasMore, cursor);
-        redisTemplate.opsForValue().set(getTrendingKey(limit),cachedFeed,TRENDING_FEED_TTL);
+    public long incrementActivity(String type) {
+        return stringRedisTemplate.opsForValue().increment(getActivityKey(type));
     }
 
-    public void evictNewFeed(int limit){
-        redisTemplate.delete(getNewKey(limit));
+    public void resetActivity(String type) {
+        stringRedisTemplate.delete(getActivityKey(type));
     }
 
-    public void evictHotFeed(int limit){
-        redisTemplate.delete(getHotKey(limit));
+    public boolean shouldEvict(String type, long count) {
+        return switch (type) {
+            case TYPE_HOT -> count >= HOT_THRESHOLD;
+            case TYPE_TRENDING -> count >= TRENDING_THRESHOLD;
+            case TYPE_NEW -> count >= NEW_THRESHOLD;
+            default -> false;
+        };
     }
-
-    public void evictTrendingFeed(int limit){
-        redisTemplate.delete(getTrendingKey(limit));
-    }
-
-    public long incrementNewActivity(){
-        return stringRedisTemplate.opsForValue().increment(getNewActivityKey());
-    }
-
-    public long incrementTrendingActivity(){
-        return  stringRedisTemplate.opsForValue().increment(getTrendingActivityKey());
-    }
-
-    public long incrementHotActivity(){
-        return stringRedisTemplate.opsForValue().increment(getHotActivityKey());
-    }
-
-    public void resetNewActivity(){
-        stringRedisTemplate.delete(getNewActivityKey());
-    }
-
-    public void resetHotActivity(){
-        stringRedisTemplate.delete(getHotActivityKey());
-    }
-
-    public void resetTrendingActivity(){
-        stringRedisTemplate.delete(getTrendingActivityKey());
-    }
-
-    public boolean shouldEvictHot(long count){
-        return count>= HOT_THRESHOLD;
-    }
-
-    public boolean shouldEvictTrending(long count){
-        return count>= TRENDING_THRESHOLD;
-    }
-
-    public boolean shouldEvictNew(long count){
-        return count>= NEW_THRESHOLD;
-    }
-
-
 }

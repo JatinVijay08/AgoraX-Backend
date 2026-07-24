@@ -62,10 +62,10 @@ public class CommentService {
         postRepo.save(post.get());
 
         // increment trending activity
-        long trendingCount = feedCacheService.incrementTrendingActivity();
-        if(feedCacheService.shouldEvictTrending(trendingCount)){
-            feedCacheService.resetTrendingActivity();
-            feedCacheService.evictTrendingFeed(10);
+        long trendingCount = feedCacheService.incrementActivity(FeedCacheService.TYPE_TRENDING);
+        if(feedCacheService.shouldEvict(FeedCacheService.TYPE_TRENDING, trendingCount)){
+            feedCacheService.resetActivity(FeedCacheService.TYPE_TRENDING);
+            feedCacheService.evictFeed(FeedCacheService.TYPE_TRENDING, 10);
         }
 
         return maptoCommentResponse(comment);
@@ -85,8 +85,8 @@ public class CommentService {
         postRepo.save(post);
         commentRepo.delete(comment.get());
 
-        feedCacheService.evictTrendingFeed(10);
-        feedCacheService.resetTrendingActivity();
+        feedCacheService.evictFeed(FeedCacheService.TYPE_TRENDING, 10);
+        feedCacheService.resetActivity(FeedCacheService.TYPE_TRENDING);
 
 
     }

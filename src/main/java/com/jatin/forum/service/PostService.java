@@ -63,7 +63,7 @@ public class PostService {
                  // Rest of the pages can be fetched from databases directly
                  if(cursor==null){
                      // first page,load from cache, and cache reloads from time to time
-                     Optional<CachedFeed> cachedPostFeed = feedCacheService.getCachedNewPosts(limit);
+                     Optional<CachedFeed> cachedPostFeed = feedCacheService.getCachedFeed(FeedCacheService.TYPE_NEW, limit);
                      if(cachedPostFeed.isPresent()){ // if cache is present-> fetch it
                          // fetch from cache
                          // we have to create a PostFeedResponse
@@ -108,7 +108,7 @@ public class PostService {
 
                      // store cache whether authenticated or not
                      List<CachedPost> cachedPostList = newList.stream().map(postMapper::mapToCachedPostFromPost).toList();
-                     feedCacheService.setCachedNewPosts(cachedPostList,hasMore,newCursor,limit);
+                     feedCacheService.setCachedFeed(FeedCacheService.TYPE_NEW, cachedPostList, hasMore, newCursor, limit);
                      return new PostFeedResponse(postResponses, newCursor != null ? newCursor.toString() : null, hasMore);
                  }
                  else{
@@ -140,7 +140,7 @@ public class PostService {
                  // check cache keys->
                   // only 0th page is being cached,so only it should be fetched
                  if(page==0){
-                     Optional<CachedFeed> cachedFeed = feedCacheService.getCachedHotPosts(limit);
+                     Optional<CachedFeed> cachedFeed = feedCacheService.getCachedFeed(FeedCacheService.TYPE_HOT, limit);
                      if(cachedFeed.isPresent()){ // if not null->return cache
                        CachedFeed cachedFeedFinal = cachedFeed.get();
                        List<Long> postIds = new ArrayList<>();
@@ -177,7 +177,7 @@ public class PostService {
                          // setTheFeed cache
                          List<CachedPost> cachedPostList = hotFeedPage.stream().map(postMapper::mapToCachedPostFromPost).toList();
                          if(!(page > 0)){ // wont cache future pages
-                             feedCacheService.setCachedHotPosts(cachedPostList,hasMore,null,limit);
+                             feedCacheService.setCachedFeed(FeedCacheService.TYPE_HOT, cachedPostList, hasMore, null, limit);
                          }
                          return postFeedResponse;
              }
@@ -186,7 +186,7 @@ public class PostService {
 
              if(sort.equals("trending")) {
                  if(page==0){
-                   Optional<CachedFeed> cachedFeedOptional = feedCacheService.getCachedTrendingPosts(limit);
+                   Optional<CachedFeed> cachedFeedOptional = feedCacheService.getCachedFeed(FeedCacheService.TYPE_TRENDING, limit);
                    if(cachedFeedOptional.isPresent()){
                       CachedFeed cachedFeed = cachedFeedOptional.get();
                       ArrayList<Long> postIds = new  ArrayList<>();
@@ -225,7 +225,7 @@ public class PostService {
                      PostFeedResponse postFeedResponse = new  PostFeedResponse(postResponses, null, hasMore);
                      List<CachedPost> cachedPostList = trendingFeedPage.stream().map(postMapper::mapToCachedPostFromPost).toList();
                      if(!(page>0)) {
-                         feedCacheService.setCachedTrendingPosts(cachedPostList, hasMore, null, limit);
+                         feedCacheService.setCachedFeed(FeedCacheService.TYPE_TRENDING, cachedPostList, hasMore, null, limit);
                      }
                      return postFeedResponse;
 
@@ -257,14 +257,14 @@ public class PostService {
 
         Post savedPost = postRepo.save(post);
 
-        feedCacheService.incrementNewActivity();
+        feedCacheService.incrementActivity(FeedCacheService.TYPE_NEW);
 
-            feedCacheService.evictNewFeed(10);
-            feedCacheService.resetNewActivity();
+            feedCacheService.evictFeed(FeedCacheService.TYPE_NEW, 10);
+            feedCacheService.resetActivity(FeedCacheService.TYPE_NEW);
 
             // increment counter for hot and trending keys
-            feedCacheService.incrementTrendingActivity();
-            feedCacheService.incrementHotActivity();
+            feedCacheService.incrementActivity(FeedCacheService.TYPE_TRENDING);
+            feedCacheService.incrementActivity(FeedCacheService.TYPE_HOT);
 
         HashMap<Long,VoteType> map = new HashMap<>();
         return postMapper.mapToPostResponse(savedPost,map);
@@ -298,12 +298,12 @@ public class PostService {
         commentRepo.deleteByPostId(postId);
         postRepo.deleteById(postId);
 
-        feedCacheService.evictNewFeed(10);
-        feedCacheService.resetNewActivity();
-        feedCacheService.evictHotFeed(10);
-        feedCacheService.resetHotActivity();
-        feedCacheService.evictTrendingFeed(10);
-        feedCacheService.resetTrendingActivity();
+        feedCacheService.evictFeed(FeedCacheService.TYPE_NEW, 10);
+        feedCacheService.resetActivity(FeedCacheService.TYPE_NEW);
+        feedCacheService.evictFeed(FeedCacheService.TYPE_HOT, 10);
+        feedCacheService.resetActivity(FeedCacheService.TYPE_HOT);
+        feedCacheService.evictFeed(FeedCacheService.TYPE_TRENDING, 10);
+        feedCacheService.resetActivity(FeedCacheService.TYPE_TRENDING);
 
     }
 
