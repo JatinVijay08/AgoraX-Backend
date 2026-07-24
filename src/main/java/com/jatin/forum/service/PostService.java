@@ -18,8 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -42,29 +40,22 @@ public class PostService {
     private final FeedCacheService feedCacheService;
     @Autowired
     private ObjectMapper objectMapper;
+    private final CurrentUserService currentUserService;
 
-    public PostService(PostRepo postRepo, UserRepo userRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, RedisTemplate<String,String> redisTemplate, FeedCacheService feedCacheService) {
+    public PostService(PostRepo postRepo, UserRepo userRepo, PostVoteRepo postVoteRepo, CommentRepo commentRepo, RedisTemplate<String,String> redisTemplate, FeedCacheService feedCacheService, CurrentUserService currentUserService) {
         this.postRepo = postRepo;
         this.userRepo = userRepo;
         this.postVoteRepo = postVoteRepo;
         this.commentRepo = commentRepo;
         this.redisTemplate = redisTemplate;
         this.feedCacheService = feedCacheService;
+        this.currentUserService = currentUserService;
     }
 
 
 
     public PostFeedResponse getAllPosts(String sort, int page,int  limit, String cursor){
-             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-             boolean isAuthenticated = authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser");
-             User user;
-             if(isAuthenticated){
-                 String email = authentication.getName();
-                 user = userRepo.findByEmail(email);
-             }
-             else{
-                 user=null;
-             }
+             User user = currentUserService.getCurrentUser().orElse(null);
              if(sort.equals("new")){
                  // newSections: first page is almost the same for everyone: and can be same for two person for specific time
                  // Rest of the pages can be fetched from databases directly
@@ -273,13 +264,7 @@ public class PostService {
     }
 
     public PostResponse createPost(String title, String content, String mediaUrl, String mediaType, String mediaPublicId){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        assert authentication != null;
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
-        if(user==null){
-            throw new RuntimeException("User not found");
-        }
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
         Post post = new Post(title, content, user);
         post.setMediaUrl(mediaUrl);
         post.setMediaType(mediaType);
@@ -305,10 +290,8 @@ public class PostService {
             return new RuntimeException("post not found");
         });
         HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated() && !authentication.getPrincipal().equals("anonymousUser")) {
-            String email = authentication.getName();
-            User user = userRepo.findByEmail(email);
+        User user = currentUserService.getCurrentUser().orElse(null);
+        if (user != null) {
              Optional<PostVote> postVote = postVoteRepo.findByUserAndPost(user,post);
             postVote.ifPresent(vote -> voteTypeHashMap.put(id, vote.getVoteType()));
              return mapToPostResponse(post,voteTypeHashMap);
@@ -319,12 +302,7 @@ public class PostService {
 
     @Transactional
     public void deletePostById(Long postId){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
-        if(user==null){
-            throw new RuntimeException("User not found");
-        }
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
         Post post = postRepo.findById(postId).orElseThrow(()-> {
             return new RuntimeException("post not found");
         });

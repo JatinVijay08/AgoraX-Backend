@@ -7,10 +7,9 @@ import com.jatin.forum.entity.User;
 import com.jatin.forum.repository.UserRepo;
 import com.jatin.forum.service.PostService;
 import com.jatin.forum.service.UserService;
+import com.jatin.forum.service.CurrentUserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,21 +19,17 @@ import java.util.List;
 @Slf4j
 public class UserController {
     private final UserService userService;
-    private final UserRepo userRepo;
+    private final CurrentUserService currentUserService;
     private final PostService postService;
 
-    public UserController(UserService userService, UserRepo userRepo, PostService postService) {
+    public UserController(UserService userService, CurrentUserService currentUserService, PostService postService) {
         this.userService = userService;
-        this.userRepo = userRepo;
+        this.currentUserService = currentUserService;
         this.postService = postService;
     }
 
     private User currentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        User user = userRepo.findByEmail(auth.getName());
-        if (user != null) {
-        }
-        return user;
+        return currentUserService.getCurrentUser().orElse(null);
     }
 
     @GetMapping()

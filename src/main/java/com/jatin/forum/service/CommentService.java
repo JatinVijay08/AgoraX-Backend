@@ -11,8 +11,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -25,22 +23,19 @@ public class CommentService {
     private final CommentVoteRepo commentVoteRepo;
     private final UserRepo userRepo;
     private final FeedCacheService feedCacheService;
+    private final CurrentUserService currentUserService;
 
-    public CommentService(PostRepo postRepo, CommentRepo commentRepo, CommentVoteRepo commentVoteRepo, UserRepo userRepo, FeedCacheService feedCacheService) {
+    public CommentService(PostRepo postRepo, CommentRepo commentRepo, CommentVoteRepo commentVoteRepo, UserRepo userRepo, FeedCacheService feedCacheService, CurrentUserService currentUserService) {
         this.postRepo = postRepo;
         this.commentRepo = commentRepo;
         this.commentVoteRepo = commentVoteRepo;
         this.userRepo = userRepo;
         this.feedCacheService = feedCacheService;
+        this.currentUserService = currentUserService;
     }
 
     public CommentResponse CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
-        if (user == null) {
-            throw new RuntimeException("User not found");
-        }
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
 
         Optional<Post> post = postRepo.findById(postID);
         if (post.isEmpty()) {
@@ -72,9 +67,7 @@ public class CommentService {
 
     public void deleteComment(Long commentID) {
         Optional<Comment> comment = commentRepo.findById(commentID);
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
         if (comment.isEmpty()) {
             throw new RuntimeException("Comment not found");
         }
@@ -95,14 +88,8 @@ public class CommentService {
     public Page<CommentResponse> getCommentByPostId(Long postId, int page,int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC,"createdAt"));
         Page<Comment> comments =  commentRepo.findByPostId(postId, pageable);
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email;
-        if(authentication!=null && authentication.isAuthenticated() && !authentication.getName().equals("anonymousUser")) {
-            email = authentication.getName();
-        } else {
-            email = null;
-        }
-        User user = userRepo.findByEmail(email);
+        
+        User user = currentUserService.getCurrentUser().orElse(null);
         return comments.map(comment->{
             long upvotes = comment.getUpvotes();
             long downvotes = comment.getDownvotes();
@@ -112,7 +99,7 @@ public class CommentService {
 
             VoteType voteType=null;
 
-            if(email!=null) {
+            if(user != null) {
                 Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user,comment);
                 voteType = commentVote.map(CommentVote::getVoteType).orElse(null);
             }
@@ -131,9 +118,7 @@ public class CommentService {
     }
 
     public CommentResponse maptoCommentResponse(Comment comment) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
         long upvotes = comment.getUpvotes();
         long downvotes = comment.getDownvotes();
 

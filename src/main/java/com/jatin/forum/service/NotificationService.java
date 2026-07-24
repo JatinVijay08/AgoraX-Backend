@@ -9,8 +9,6 @@ import com.jatin.forum.repository.UserRepo;
 import jakarta.transaction.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 
@@ -26,11 +24,13 @@ public class NotificationService {
     private final NotificationRepo notificationRepo;
     private final UserRepo userRepo;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final CurrentUserService currentUserService;
 
-    public NotificationService(NotificationRepo notificationRepo, UserRepo userRepo, ApplicationEventPublisher applicationEventPublisher) {
+    public NotificationService(NotificationRepo notificationRepo, UserRepo userRepo, ApplicationEventPublisher applicationEventPublisher, CurrentUserService currentUserService) {
         this.notificationRepo = notificationRepo;
         this.userRepo = userRepo;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.currentUserService = currentUserService;
     }
 
     // create a notification: method : as it is a command and not a query
@@ -76,9 +76,7 @@ public class NotificationService {
     public NotificationFeedResponse getNotifications(Instant cursor,int limit) {
         // first fetch the notificationList
         //get Reciever Id
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if(limit<=0){
             throw new IllegalArgumentException("limit can't be less than 0");
@@ -108,12 +106,7 @@ public class NotificationService {
 
     @Transactional
     public void markAllNotificationAsRead(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
-        if(user==null){
-            throw new IllegalArgumentException("User not found");
-        }
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new IllegalArgumentException("User not found"));
         Long receiverId = user.getId();
         notificationRepo.markAllNotificationsAsRead(receiverId);
 
@@ -121,12 +114,7 @@ public class NotificationService {
 
 
     public Integer countUnreadNotifications() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepo.findByEmail(email);
-        if(user==null){
-            throw new IllegalArgumentException("User not found");
-        }
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new IllegalArgumentException("User not found"));
         Long receiverId = user.getId();
         return notificationRepo.countNotificationByReceiverIdAndReadIsFalse(receiverId, false);
     }

@@ -9,8 +9,6 @@ import com.jatin.forum.repository.PostRepo;
 import com.jatin.forum.repository.PostVoteRepo;
 import com.jatin.forum.repository.UserRepo;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -32,64 +30,61 @@ public class VoteService {
     private final PostService postService;
     private final NotificationService notificationService;
     private final FeedCacheService feedCacheService;
+    private final CurrentUserService currentUserService;
 
-    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService, NotificationService notificationService, FeedCacheService feedCacheService) {
+    public VoteService(PostVoteRepo postVoteRepo, UserRepo userRepo, PostRepo postRepo, PostService postService, NotificationService notificationService, FeedCacheService feedCacheService, CurrentUserService currentUserService) {
         this.postVoteRepo = postVoteRepo;
         this.userRepo = userRepo;
         this.postRepo = postRepo;
         this.postService = postService;
         this.notificationService = notificationService;
         this.feedCacheService = feedCacheService;
+        this.currentUserService = currentUserService;
     }
 
     public PostResponse voteOnPost(Long postId, VoteType voteType) {
-           Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-           String email = authentication.getName();
-           User user = userRepo.findByEmail(email);
-           Optional<Post> post = postRepo.findById(postId);
-           if(post.isEmpty()){
-               throw new RuntimeException("post not found");
-           }
+           User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
+           Post currentPost = postRepo.findById(postId).orElseThrow(() -> new RuntimeException("post not found"));
 
-           Optional<PostVote> postVote = postVoteRepo.findByUserAndPost(user,post.get());
+           Optional<PostVote> postVote = postVoteRepo.findByUserAndPost(user,currentPost);
            if(postVote.isEmpty()){
-               PostVote postVote1 = new PostVote(user,post.get(),voteType);
+               PostVote postVote1 = new PostVote(user,currentPost,voteType);
                if(VoteType.upvote.equals(voteType)){
-                   post.get().setUpvotesCount(post.get().getUpvotesCount()+1);
+                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()+1);
                }
                else if(VoteType.downvote.equals(voteType)){
-                   post.get().setDownvotesCount(post.get().getDownvotesCount()+1);
+                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()+1);
                }
                postVoteRepo.save(postVote1);
-               postRepo.save(post.get());
+               postRepo.save(currentPost);
                if(VoteType.upvote.equals(voteType)) {
-                   notificationService.createNotification(post.get(), user, NotificationType.POST_LIKE);
+                   notificationService.createNotification(currentPost, user, NotificationType.POST_LIKE);
                }
            }
            else if(postVote.get().getVoteType().equals(voteType)){
                if(VoteType.upvote.equals(voteType)){
-                   post.get().setUpvotesCount(post.get().getUpvotesCount()-1);
+                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()-1);
                }
                else if(VoteType.downvote.equals(voteType)){
-                   post.get().setDownvotesCount(post.get().getDownvotesCount()-1);
+                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()-1);
                }
                postVoteRepo.delete(postVote.get());
-               postRepo.save(post.get());
+               postRepo.save(currentPost);
            }
            else if(!postVote.get().getVoteType().equals(voteType)){
                postVote.get().setVoteType(voteType);
                if(VoteType.upvote.equals(voteType)){
-                   post.get().setUpvotesCount(post.get().getUpvotesCount()+1);
-                   post.get().setDownvotesCount(post.get().getDownvotesCount()-1);
+                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()+1);
+                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()-1);
                }
                else if(VoteType.downvote.equals(voteType)){
-                   post.get().setDownvotesCount(post.get().getDownvotesCount()+1);
-                   post.get().setUpvotesCount(post.get().getUpvotesCount()-1);
+                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()+1);
+                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()-1);
                }
                postVoteRepo.save(postVote.get());
 
                if(VoteType.upvote.equals(voteType)) {
-                   notificationService.createNotification(post.get(), user, NotificationType.POST_LIKE);
+                   notificationService.createNotification(currentPost, user, NotificationType.POST_LIKE);
                }
            }
 
@@ -106,8 +101,8 @@ public class VoteService {
            }
 
            // new vote type returned
-        HashMap<Long,VoteType> map = new HashMap<>();
+         HashMap<Long,VoteType> map = new HashMap<>();
            map.put(postId,voteType);
-         return postService.mapToPostResponse(post.get(),map); // fetch from db
+         return postService.mapToPostResponse(currentPost,map); // fetch from db
 }
 }

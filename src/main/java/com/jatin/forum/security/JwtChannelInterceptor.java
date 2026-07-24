@@ -41,7 +41,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                 String token = header.substring(7);
                 if(jwtUtil.isValid(token)){
                     String email = jwtUtil.extractEmail(token);
-                    User user = userRepo.findByEmail(email);
+                    User user = userRepo.findByEmail(email).orElse(null);
                     if(user==null){
                         return message;
                     }

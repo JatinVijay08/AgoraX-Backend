@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String email = jwtUtil.extractEmail(token);
 
-        User user = userRepo.findByEmail(email);
+        User user = userRepo.findByEmail(email).orElse(null);
         if (user == null) {
             throw new RuntimeException("Invalid email or password");
         }

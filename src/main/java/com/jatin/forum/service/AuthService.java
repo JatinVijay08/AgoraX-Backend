@@ -36,7 +36,7 @@ public class AuthService {
     }
 
     public void register(RegisterRequest registerRequest) {
-        if (userRepo.findByEmail(registerRequest.email()) != null) {
+        if (userRepo.findByEmail(registerRequest.email()).isPresent()) {
             throw new UserAlreadyExistsException("User is already Registered with this Email");
         }
 
@@ -52,7 +52,7 @@ public class AuthService {
     }
 
     public LoginResponseDto login(LoginRequest loginRequest) {
-        User user = userRepo.findByEmail(loginRequest.email());
+        User user = userRepo.findByEmail(loginRequest.email()).orElse(null);
         if (user == null) {
             throw new ResourceNotFoundException("User not found");
         }
@@ -74,7 +74,7 @@ public class AuthService {
         String name  = (String) payload.get("name");
         String googleId = (String) payload.get("sub"); // unique user id
 
-        User existingUser = userRepo.findByEmail(email);
+        User existingUser = userRepo.findByEmail(email).orElse(null);
         if(existingUser!=null){
             if(existingUser.getAuthProvider()== AuthProvider.LOCAL){
                 throw new RuntimeException("This email is already registered with email and password.Please Login normally");

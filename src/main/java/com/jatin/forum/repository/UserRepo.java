@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface UserRepo extends JpaRepository<User, Long> {
 
-    User findByEmail(@NotBlank String email);
+    java.util.Optional<User> findByEmail(@NotBlank String email);
 
     boolean existsByUsername(String username);
 
