@@ -13,10 +13,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @RestController
 @RequestMapping("/api/posts")
 @Slf4j
+@Validated
 public class PostController {
 
     private final PostService postService;
@@ -40,8 +45,8 @@ public class PostController {
     @PostMapping(consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
     public PostResponse createPost(
-            @RequestParam("title") String title,
-            @RequestParam("content") String content,
+            @RequestParam("title") @NotBlank(message = "Title is required") @Size(max = 255, message = "Title cannot exceed 255 characters") String title,
+            @RequestParam("content") @NotBlank(message = "Content is required") @Size(max = 10000, message = "Content cannot exceed 10000 characters") String content,
             @RequestParam(value = "media", required = false) MultipartFile media
     ) throws IOException {
 
@@ -72,7 +77,7 @@ public class PostController {
     }
 
     @PostMapping("/{postId}/votes")
-    public PostResponse voteOnPost(@PathVariable Long postId, @RequestBody VoteRequest voteRequest) {
+    public PostResponse voteOnPost(@PathVariable Long postId, @Valid @RequestBody VoteRequest voteRequest) {
         return voteService.voteOnPost(postId, voteRequest.voteType());
     }
 }

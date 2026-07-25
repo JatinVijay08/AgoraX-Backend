@@ -12,6 +12,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import com.jatin.forum.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 
@@ -37,17 +39,17 @@ public class CommentService {
     }
 
     public CommentResponse CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
-        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Optional<Post> post = postRepo.findById(postID);
         if (post.isEmpty()) {
-            throw new RuntimeException("Post not found");
+            throw new ResourceNotFoundException("Post not found");
         }
         Comment comment = new Comment(createCommentRequest.content(), user, post.get());
 
         if(createCommentRequest.parentId() != null) {
             Comment parent = commentRepo.findById(createCommentRequest.parentId()).orElseThrow(()-> {
-                return new RuntimeException("Parent comment not found");
+                return new ResourceNotFoundException("Parent comment not found");
             });
             comment.setParentComment(parent);
             commentRepo.save(comment);
@@ -73,12 +75,12 @@ public class CommentService {
 
     public void deleteComment(Long commentID) {
         Optional<Comment> comment = commentRepo.findById(commentID);
-        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (comment.isEmpty()) {
-            throw new RuntimeException("Comment not found");
+            throw new ResourceNotFoundException("Comment not found");
         }
         if(!comment.get().getUser().getEmail().equals(user.getEmail())) {
-            throw new RuntimeException("You are not allowed to delete this comment");
+            throw new AccessDeniedException("You are not allowed to delete this comment");
         }
         Post post = comment.get().getPost();
         post.setCommentCount(post.getCommentCount()-1);
@@ -124,7 +126,7 @@ public class CommentService {
     }
 
     public CommentResponse maptoCommentResponse(Comment comment) {
-        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new ResourceNotFoundException("User not found"));
         long upvotes = comment.getUpvotes();
         long downvotes = comment.getDownvotes();
 

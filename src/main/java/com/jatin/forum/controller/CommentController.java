@@ -9,10 +9,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/comments")
 @Slf4j
+@Validated
 public class CommentController {
 
     private final CommentService commentService;
@@ -26,7 +29,7 @@ public class CommentController {
 
     @PostMapping("/post/{postId}")
     @ResponseStatus(HttpStatus.CREATED)
-    public CommentResponse addComment(@PathVariable("postId") Long postId, @RequestBody CreateCommentRequest createCommentRequest) {
+    public CommentResponse addComment(@PathVariable("postId") Long postId, @Valid @RequestBody CreateCommentRequest createCommentRequest) {
 
         return commentService.CreateComment(postId, createCommentRequest);
     }
@@ -45,7 +48,7 @@ public class CommentController {
     }
 
     @PostMapping("{commentId}/votes")
-    public CommentResponse voteOnComment(@PathVariable long commentId, @RequestBody VoteRequest voteRequest) {
+    public CommentResponse voteOnComment(@PathVariable long commentId, @Valid @RequestBody VoteRequest voteRequest) {
 
         return commentVoteService.voteOnComment(commentId, voteRequest);
     }

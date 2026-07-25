@@ -20,6 +20,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
+import com.jatin.forum.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -273,7 +275,7 @@ public class PostService {
 
 
     public PostResponse createPost(String title, String content, String mediaUrl, String mediaType, String mediaPublicId){
-        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new ResourceNotFoundException("User not found"));
         Post post = new Post(title, content, user);
         post.setMediaUrl(mediaUrl);
         post.setMediaType(mediaType);
@@ -297,7 +299,7 @@ public class PostService {
 
     public PostResponse getPostById(Long id){
         Post post = postRepo.findById(id).orElseThrow(()-> {
-            return new RuntimeException("post not found");
+            return new ResourceNotFoundException("post not found");
         });
         HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
         HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(Collections.singletonList(id));
@@ -313,12 +315,12 @@ public class PostService {
 
     @Transactional
     public void deletePostById(Long postId){
-        User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
+        User user = currentUserService.getCurrentUser().orElseThrow(() -> new ResourceNotFoundException("User not found"));
         Post post = postRepo.findById(postId).orElseThrow(()-> {
-            return new RuntimeException("post not found");
+            return new ResourceNotFoundException("post not found");
         });
         if(!post.getUser().getId().equals(user.getId())){
-           throw new RuntimeException("Not allowed to delete post");
+           throw new AccessDeniedException("Not allowed to delete post");
         }
         postVoteRepo.deleteByPostId(postId);
         commentRepo.deleteByPostId(postId);
