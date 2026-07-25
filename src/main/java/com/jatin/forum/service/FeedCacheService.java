@@ -21,6 +21,7 @@ public class FeedCacheService {
     private final RedisTemplate<String, CachedFeed> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
     private static final Duration FEED_TTL = Duration.ofMinutes(2);
+    private static final Duration ACTIVITY_TTL = Duration.ofMinutes(10);
     
     private static final int NEW_THRESHOLD = 1;
     private static final int HOT_THRESHOLD = 10;
@@ -53,7 +54,12 @@ public class FeedCacheService {
     }
 
     public long incrementActivity(String type) {
-        return stringRedisTemplate.opsForValue().increment(getActivityKey(type));
+        String key = getActivityKey(type);
+        Long count = stringRedisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            stringRedisTemplate.expire(key, ACTIVITY_TTL);
+        }
+        return count != null ? count : 0;
     }
 
     public void resetActivity(String type) {
