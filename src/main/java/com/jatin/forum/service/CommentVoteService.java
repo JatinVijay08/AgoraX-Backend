@@ -32,6 +32,7 @@ public class CommentVoteService {
     }
 
     public CommentResponse voteOnComment(long commentId, VoteRequest voteRequest) {
+        VoteType finalVoteType = voteRequest.voteType();
         User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
         Comment currentComment = commentRepo.findById(commentId).orElseThrow(() -> new RuntimeException("Comment not found"));
         
@@ -61,6 +62,7 @@ public class CommentVoteService {
             }
             commentVoteRepo.delete(commentVote.get());
             commentRepo.save(currentComment);
+            finalVoteType = null;
         }
         else if (!voteRequest.voteType().equals(commentVote.get().getVoteType())) {
 
@@ -75,25 +77,23 @@ public class CommentVoteService {
             }
             commentVoteRepo.save(commentVote.get());
         }
-        return maptoCommentResponse(currentComment);
+        return maptoCommentResponse(currentComment, finalVoteType);
 
         }
 
-    public CommentResponse maptoCommentResponse(Comment comment) {
+    public CommentResponse maptoCommentResponse(Comment comment, VoteType finalVoteType) {
         User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
         long upvotes = comment.getUpvotes();
         long downvotes = comment.getDownvotes();
 
         long voteCount = upvotes-downvotes;
 
-        Optional<CommentVote> commentVote = commentVoteRepo.findByUserAndComment(user,comment);
 
         Long parentCommentId = null;
         if(comment.getParentComment() != null){
             parentCommentId = comment.getParentComment().getId();
         }
-        VoteType voteType = commentVote.map(CommentVote::getVoteType).orElse(null);
-        CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,voteType);
+        CommentResponse commentResponse = new CommentResponse(comment.getUser().getUsername(),comment.getId(),comment.getContent(),comment.getCreatedAt(),parentCommentId,voteCount,finalVoteType);
         return commentResponse;
     }
 

@@ -46,6 +46,7 @@ public class VoteService {
            User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
            Post currentPost = postRepo.findById(postId).orElseThrow(() -> new RuntimeException("post not found"));
 
+           VoteType finalVoteType = voteType;
            Optional<PostVote> postVote = postVoteRepo.findByUserAndPost(user,currentPost);
            if(postVote.isEmpty()){
                PostVote postVote1 = new PostVote(user,currentPost,voteType);
@@ -70,6 +71,7 @@ public class VoteService {
                }
                postVoteRepo.delete(postVote.get());
                postRepo.save(currentPost);
+               finalVoteType = null;
            }
            else if(!postVote.get().getVoteType().equals(voteType)){
                postVote.get().setVoteType(voteType);
@@ -102,7 +104,9 @@ public class VoteService {
 
            // new vote type returned
          HashMap<Long,VoteType> map = new HashMap<>();
-           map.put(postId,voteType);
+         if (finalVoteType != null) {
+             map.put(postId, finalVoteType);
+         }
          return postMapper.mapToPostResponse(currentPost,map); // fetch from db
 }
 }
