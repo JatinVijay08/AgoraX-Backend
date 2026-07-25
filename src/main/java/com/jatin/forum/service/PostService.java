@@ -76,8 +76,9 @@ public class PostService {
                             }
 
                             HashMap<Long,VoteType> voteMap = this.getVoteTypeHashMap(user,postIds);
+                            HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(postIds);
 
-                         List<PostResponse> postFeedResponseList = cachedFeed.cachedPostList().stream().map(cachedPost -> postMapper.mapToPostResponseFromCachePost(cachedPost,voteMap)).toList();
+                         List<PostResponse> postFeedResponseList = cachedFeed.cachedPostList().stream().map(cachedPost -> postMapper.mapToPostResponseFromCachePost(cachedPost,voteMap,voteCountMap)).toList();
                          boolean hasMore = cachedFeed.hasMore();
                          String newCursor = cachedFeed.cursor()==null? null : cachedFeed.cursor().toString();
                          return new PostFeedResponse(postFeedResponseList,newCursor,hasMore);
@@ -99,9 +100,10 @@ public class PostService {
                      }
 
                     HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
+                    HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(postIds);
 
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap))
+                             .map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap,voteCountMap))
                              .toList();
 
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
@@ -126,9 +128,10 @@ public class PostService {
                      // select PostVote from repo where user = user and postID IN(1,2,3,4,...) -> Ine one operation gets all votetypes
                      // for all posts
                      HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
+                     HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(postIds);
 
                      List<PostResponse> postResponses = newList.stream()
-                             .map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap))
+                             .map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap,voteCountMap))
                              .toList();
                      Instant newCursor = postResponses.isEmpty() ? null : postResponses.get(postResponses.size() - 1).createdAt();
                      boolean hasMore = newList.size() == limit;
@@ -148,7 +151,8 @@ public class PostService {
                          postIds.add(post.id());
                        }
                        HashMap<Long, VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user, postIds);
-                       List<PostResponse> postResponsesList = cachedFeedFinal.cachedPostList().stream().map(post -> postMapper.mapToPostResponseFromCachePost(post,voteTypeHashMap)).toList();
+                       HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(postIds);
+                       List<PostResponse> postResponsesList = cachedFeedFinal.cachedPostList().stream().map(post -> postMapper.mapToPostResponseFromCachePost(post,voteTypeHashMap,voteCountMap)).toList();
                        boolean hasMore = cachedFeedFinal.hasMore();
                        String newCursor = cachedFeedFinal.cursor()==null ? null : cachedFeedFinal.cursor().toString();
                        return new  PostFeedResponse(postResponsesList, newCursor, hasMore);
@@ -165,13 +169,14 @@ public class PostService {
                              postIds.add(post.getId());
                          }
                          HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
+                         HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(postIds);
 
                          List<Post> hotFeedPage = hotList.stream().sorted(Comparator.comparing(postMapper::getHotScorePost).reversed())
                                  .skip((long)page*limit)
                                  .limit(limit)
                                  .toList();
 
-                         List<PostResponse> postResponseList = hotFeedPage.stream().map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap)).toList();
+                         List<PostResponse> postResponseList = hotFeedPage.stream().map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap,voteCountMap)).toList();
                          boolean hasMore = hotList.size() > (page+1)*limit;
                          PostFeedResponse postFeedResponse = new PostFeedResponse(postResponseList, null, hasMore);
                          // setTheFeed cache
@@ -194,8 +199,9 @@ public class PostService {
                           postIds.add(cachedPost.id());
                       }
                       HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
+                      HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(postIds);
 
-                     List<PostResponse> postResponses = cachedFeed.cachedPostList().stream().map(post -> postMapper.mapToPostResponseFromCachePost(post,voteTypeHashMap)).toList();
+                     List<PostResponse> postResponses = cachedFeed.cachedPostList().stream().map(post -> postMapper.mapToPostResponseFromCachePost(post,voteTypeHashMap,voteCountMap)).toList();
 
                      boolean hasMore = cachedFeed.hasMore();
                      String newCursor = cachedFeed.cursor() == null ? null : cachedFeed.cursor().toString();
@@ -212,6 +218,7 @@ public class PostService {
                          }
 
                      HashMap<Long,VoteType> voteTypeHashMap = this.getVoteTypeHashMap(user,postIds);
+                     HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(postIds);
 
                      List<Post> trendingFeedPage = recentTotal
                              .stream()
@@ -220,7 +227,7 @@ public class PostService {
                              .limit(limit)
                              .toList();
 
-                     List<PostResponse> postResponses = trendingFeedPage.stream().map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap)).toList();
+                     List<PostResponse> postResponses = trendingFeedPage.stream().map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap,voteCountMap)).toList();
                      boolean hasMore = recentTotal.size() > (page+1)*limit;
                      PostFeedResponse postFeedResponse = new  PostFeedResponse(postResponses, null, hasMore);
                      List<CachedPost> cachedPostList = trendingFeedPage.stream().map(postMapper::mapToCachedPostFromPost).toList();
@@ -237,12 +244,29 @@ public class PostService {
         if(user==null){
             return new  HashMap<>();
         }
+        if(postIds == null || postIds.isEmpty()){
+            return new HashMap<>();
+        }
         List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
         HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
         for(PostVote postVote:postVotes){
             voteTypeHashMap.put(postVote.getPost().getId(), postVote.getVoteType());
         }
         return voteTypeHashMap;
+    }
+
+    private HashMap<Long, Long> getVoteCountHashMap(List<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        List<Object[]> results = postVoteRepo.getAggregateVotesForPosts(postIds);
+        HashMap<Long, Long> countMap = new HashMap<>();
+        for (Object[] result : results) {
+            Long postId = (Long) result[0];
+            Number count = (Number) result[1];
+            countMap.put(postId, count != null ? count.longValue() : 0L);
+        }
+        return countMap;
     }
 
 
@@ -267,7 +291,8 @@ public class PostService {
             feedCacheService.incrementActivity(FeedCacheService.TYPE_HOT);
 
         HashMap<Long,VoteType> map = new HashMap<>();
-        return postMapper.mapToPostResponse(savedPost,map);
+        HashMap<Long, Long> voteCountMap = new HashMap<>();
+        return postMapper.mapToPostResponse(savedPost,map,voteCountMap);
     }
 
     public PostResponse getPostById(Long id){
@@ -275,13 +300,14 @@ public class PostService {
             return new RuntimeException("post not found");
         });
         HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+        HashMap<Long, Long> voteCountMap = this.getVoteCountHashMap(Collections.singletonList(id));
         User user = currentUserService.getCurrentUser().orElse(null);
         if (user != null) {
              Optional<PostVote> postVote = postVoteRepo.findByUserAndPost(user,post);
             postVote.ifPresent(vote -> voteTypeHashMap.put(id, vote.getVoteType()));
-             return postMapper.mapToPostResponse(post,voteTypeHashMap);
+             return postMapper.mapToPostResponse(post,voteTypeHashMap,voteCountMap);
         } else {
-             return postMapper.mapToPostResponse(post,voteTypeHashMap);
+             return postMapper.mapToPostResponse(post,voteTypeHashMap,voteCountMap);
         }
     }
 

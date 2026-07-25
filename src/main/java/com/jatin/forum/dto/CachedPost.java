@@ -13,7 +13,5 @@ public record CachedPost(
         String mediaType,
         String mediaPublicId,
         String creatorUsername,
-        long commentCount,
-        long upvotesCount,
-        long downvotesCount
+        long commentCount
 ){}

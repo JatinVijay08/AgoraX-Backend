@@ -25,10 +25,8 @@ public class PostMapper {
         this.commentRepo = commentRepo;
     }
 
-    public PostResponse mapToPostResponse(Post post, HashMap<Long, VoteType> voteTypeHashMap) {
-        long upvotes = post.getUpvotesCount();
-        long downvotes = post.getDownvotesCount();
-        long votes = upvotes - downvotes;
+    public PostResponse mapToPostResponse(Post post, HashMap<Long, VoteType> voteTypeHashMap, HashMap<Long, Long> voteCountHashMap) {
+        long votes = voteCountHashMap.getOrDefault(post.getId(), 0L);
         long commentCount = post.getCommentCount();
 
         VoteType voteType = voteTypeHashMap.getOrDefault(post.getId(), null);
@@ -50,16 +48,12 @@ public class PostMapper {
                 post.getMediaType(),
                 post.getMediaPublicId(),
                 post.getUser().getUsername(),
-                post.getCommentCount(),
-                post.getUpvotesCount(),
-                post.getDownvotesCount()
+                post.getCommentCount()
         );
     }
 
-    public PostResponse mapToPostResponseFromCachePost(CachedPost cachedPost, HashMap<Long, VoteType> voteTypeHashMap) {
-        long upvotes = cachedPost.upvotesCount();
-        long downvotes = cachedPost.downvotesCount();
-        long votes = upvotes - downvotes;
+    public PostResponse mapToPostResponseFromCachePost(CachedPost cachedPost, HashMap<Long, VoteType> voteTypeHashMap, HashMap<Long, Long> voteCountHashMap) {
+        long votes = voteCountHashMap.getOrDefault(cachedPost.id(), 0L);
         long commentCount = cachedPost.commentCount();
 
         VoteType voteType = voteTypeHashMap.getOrDefault(cachedPost.id(), null);

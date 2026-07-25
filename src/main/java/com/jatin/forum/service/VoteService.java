@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -107,6 +108,13 @@ public class VoteService {
          if (finalVoteType != null) {
              map.put(postId, finalVoteType);
          }
-         return postMapper.mapToPostResponse(currentPost,map); // fetch from db
+         
+         List<Object[]> results = postVoteRepo.getAggregateVotesForPosts(List.of(postId));
+         HashMap<Long, Long> voteCountMap = new HashMap<>();
+         for (Object[] result : results) {
+             voteCountMap.put((Long) result[0], ((Number) result[1]).longValue());
+         }
+         
+         return postMapper.mapToPostResponse(currentPost, map, voteCountMap); // fetch from db
 }
 }

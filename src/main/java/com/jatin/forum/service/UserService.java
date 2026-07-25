@@ -59,11 +59,22 @@ public class UserService {
         long postCount = posts.size();
         long commentCount = 0;
         long karma = 0;
+        List<Long> postIds = new ArrayList<>();
         for (Post post : posts) {
+            postIds.add(post.getId());
             commentCount += post.getCommentCount();
-            karma += post.getUpvotesCount();
-            karma -= post.getDownvotesCount();
         }
+        
+        if (!postIds.isEmpty()) {
+            List<Object[]> results = postVoteRepo.getAggregateVotesForPosts(postIds);
+            for (Object[] result : results) {
+                Number count = (Number) result[1];
+                if (count != null) {
+                    karma += count.longValue();
+                }
+            }
+        }
+        
         return new com.jatin.forum.dto.UserProfileResponse(user.getUsername(), user.getEmail(), user.getCreated(), postCount, commentCount, karma);
     }
 
@@ -85,8 +96,17 @@ public class UserService {
         for(PostVote vote:postVotes){
             voteTypeHashMap.put(vote.getPost().getId(), vote.getVoteType());
         }
+        
+        HashMap<Long, Long> voteCountMap = new HashMap<>();
+        if (!postIds.isEmpty()) {
+            List<Object[]> results = postVoteRepo.getAggregateVotesForPosts(postIds);
+            for (Object[] result : results) {
+                voteCountMap.put((Long) result[0], ((Number) result[1]).longValue());
+            }
+        }
+
         List<PostResponse> postResponses = posts.stream()
-                .map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap))
+                .map(post -> postMapper.mapToPostResponse(post,voteTypeHashMap,voteCountMap))
                 .toList();
 
         if ("top".equals(sort)) {

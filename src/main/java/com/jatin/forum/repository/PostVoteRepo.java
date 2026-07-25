@@ -7,6 +7,9 @@ import com.jatin.forum.entity.VoteType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -28,4 +31,7 @@ public interface PostVoteRepo extends JpaRepository<PostVote, Long> {
     List<PostVote> findByUserAndPostIdIn(User user, Collection<Long> postIds);
 
     Collection<Long> post(Post post);
+
+    @Query("SELECT pv.post.id, SUM(CASE WHEN pv.voteType = 'upvote' THEN 1 ELSE -1 END) FROM PostVote pv WHERE pv.post.id IN :postIds GROUP BY pv.post.id")
+    List<Object[]> getAggregateVotesForPosts(@Param("postIds") Collection<Long> postIds);
 }
