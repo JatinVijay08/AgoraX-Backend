@@ -3,6 +3,7 @@ package com.jatin.forum.service;
 import com.jatin.forum.dto.CachedPost;
 import com.jatin.forum.dto.PostResponse;
 import com.jatin.forum.entity.Post;
+import com.jatin.forum.entity.PostVote;
 import com.jatin.forum.entity.User;
 import com.jatin.forum.entity.VoteType;
 import com.jatin.forum.repository.CommentRepo;
@@ -13,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 
 @Component
 public class PostMapper {
@@ -83,4 +85,35 @@ public class PostMapper {
         long recentComments = commentRepo.countByPostAndCreatedAtAfter(post, sixHoursAgo);
         return recentVotes + (recentComments * 2);
     }
+
+    public HashMap<Long, Long> getVoteCountHashMap(List<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        List<Object[]> results = postVoteRepo.getAggregateVotesForPosts(postIds);
+        HashMap<Long, Long> countMap = new HashMap<>();
+        for (Object[] result : results) {
+            Long postId = (Long) result[0];
+            Number count = (Number) result[1];
+            countMap.put(postId, count != null ? count.longValue() : 0L);
+        }
+        return countMap;
+    }
+
+    public HashMap<Long,VoteType> getVoteTypeHashMap(User user, List<Long> postIds){
+        if(user==null){
+            return new  HashMap<>();
+        }
+        if(postIds == null || postIds.isEmpty()){
+            return new HashMap<>();
+        }
+        List<PostVote> postVotes = postVoteRepo.findByUserAndPostIdIn(user,postIds);
+        HashMap<Long,VoteType> voteTypeHashMap = new HashMap<>();
+        for(PostVote postVote:postVotes){
+            voteTypeHashMap.put(postVote.getPost().getId(), postVote.getVoteType());
+        }
+        return voteTypeHashMap;
+    }
+
+
 }

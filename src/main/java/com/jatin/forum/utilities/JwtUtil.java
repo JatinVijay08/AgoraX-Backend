@@ -1,4 +1,4 @@
-package com.jatin.forum;
+package com.jatin.forum.utilities;
 
 
 import com.jatin.forum.entity.User;

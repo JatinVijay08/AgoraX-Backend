@@ -1,6 +1,6 @@
 package com.jatin.forum.service;
 // testing comment on New testing branch
-import com.jatin.forum.JwtUtil;
+import com.jatin.forum.utilities.JwtUtil;
 import com.jatin.forum.dto.LoginRequest;
 import com.jatin.forum.dto.LoginResponseDto;
 import com.jatin.forum.dto.RegisterRequest;

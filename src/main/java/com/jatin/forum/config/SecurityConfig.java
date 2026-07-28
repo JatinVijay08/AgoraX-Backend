@@ -1,6 +1,6 @@
 package com.jatin.forum.config;
 
-import com.jatin.forum.JwtUtil;
+import com.jatin.forum.utilities.JwtUtil;
 import com.jatin.forum.repository.UserRepo;
 import com.jatin.forum.security.CustomAuthenticationEntryPoint;
 import com.jatin.forum.security.JwtAuthenticationFilter;

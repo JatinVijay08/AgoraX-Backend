@@ -1,6 +1,6 @@
 package com.jatin.forum.security;
 
-import com.jatin.forum.JwtUtil;
+import com.jatin.forum.utilities.JwtUtil;
 import com.jatin.forum.entity.User;
 import com.jatin.forum.repository.UserRepo;
 import jakarta.servlet.FilterChain;

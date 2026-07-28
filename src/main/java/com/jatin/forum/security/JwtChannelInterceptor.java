@@ -1,9 +1,8 @@
 package com.jatin.forum.security;
 
-import com.jatin.forum.JwtUtil;
+import com.jatin.forum.utilities.JwtUtil;
 import com.jatin.forum.entity.User;
 import com.jatin.forum.repository.UserRepo;
-import com.jatin.forum.service.UserService;
 import org.jspecify.annotations.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
