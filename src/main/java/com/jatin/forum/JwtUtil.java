@@ -3,23 +3,35 @@ package com.jatin.forum;
 
 import com.jatin.forum.entity.User;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import java.nio.charset.StandardCharsets;
+
 import java.util.Date;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
-import java.security.Key;
-import java.util.Date;
+
+import javax.crypto.SecretKey;
+
+
+
 
 @Component
 @Slf4j
 public class JwtUtil {
-    private static final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+
+    @Value("${jwt.secret}")
+    private String secret;
+
+    private  SecretKey getSigningKey() {
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 
     public String generateToken(User user) {
         return Jwts.builder()
@@ -28,13 +40,13 @@ public class JwtUtil {
                 .setExpiration(
                         new Date(System.currentTimeMillis() + 1000 * 60 * 60)
                 )
-                .signWith(key)
+                .signWith(getSigningKey())
                 .compact();
     }
 
     public String extractEmail(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(key)
+                .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
@@ -44,7 +56,7 @@ public class JwtUtil {
     public boolean isValid(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(key)
+                    .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token);
             return true;
