@@ -35,7 +35,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
             // extract the header
             String header = accessor.getFirstNativeHeader("Authorization");
             if(header==null){
-                return message;
+                throw new IllegalArgumentException("Unauthorized Stomp Connection!");
             }
             if(header.startsWith("Bearer ")){
                 String token = header.substring(7);
@@ -43,7 +43,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                     String email = jwtUtil.extractEmail(token);
                     User user = userRepo.findByEmail(email).orElse(null);
                     if(user==null){
-                        return message;
+                        throw new IllegalArgumentException("User not found!");
                     }
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken
                             (user.getEmail(),
@@ -52,7 +52,13 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                     accessor.setUser(authentication);
                    // authentication object is now made
                 }
+                else{
+                    throw new IllegalArgumentException("Invalid Token!");
+                }
 
+            }
+            else{
+                throw new IllegalArgumentException("Unauthorized Stomp Connection!");
             }
         }
         return message;
