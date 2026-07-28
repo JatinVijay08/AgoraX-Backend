@@ -18,6 +18,7 @@ import java.util.Set;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
@@ -43,6 +44,7 @@ public class VoteService {
         this.currentUserService = currentUserService;
     }
 
+    @Transactional
     public PostResponse voteOnPost(Long postId, VoteType voteType) {
            User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
            Post currentPost = postRepo.findById(postId).orElseThrow(() -> new RuntimeException("post not found"));
@@ -52,37 +54,46 @@ public class VoteService {
            if(postVote.isEmpty()){
                PostVote postVote1 = new PostVote(user,currentPost,voteType);
                if(VoteType.upvote.equals(voteType)){
-                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()+1);
+                   // increment upvote
+                   postRepo.incrementUpvoteCount(postId);
+
                }
                else if(VoteType.downvote.equals(voteType)){
-                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()+1);
+                   // increment downvote
+                   postRepo.incrementDownvoteCount(postId);
                }
                postVoteRepo.save(postVote1);
-               postRepo.save(currentPost);
                if(VoteType.upvote.equals(voteType)) {
                    notificationService.createNotification(currentPost, user, NotificationType.POST_LIKE);
                }
            }
            else if(postVote.get().getVoteType().equals(voteType)){
                if(VoteType.upvote.equals(voteType)){
-                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()-1);
+                   // decrement upvote
+                   postRepo.decrementUpvoteCount(postId);
+
                }
                else if(VoteType.downvote.equals(voteType)){
-                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()-1);
+                   // decrement downvote
+                   postRepo.decrementDownvoteCount(postId);
+
                }
                postVoteRepo.delete(postVote.get());
-               postRepo.save(currentPost);
                finalVoteType = null;
            }
            else if(!postVote.get().getVoteType().equals(voteType)){
                postVote.get().setVoteType(voteType);
                if(VoteType.upvote.equals(voteType)){
-                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()+1);
-                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()-1);
+                   // increment upvote , decrement downvote
+                   postRepo.incrementUpvoteCount(postId);
+                   postRepo.decrementDownvoteCount(postId);
+
                }
                else if(VoteType.downvote.equals(voteType)){
-                   currentPost.setDownvotesCount(currentPost.getDownvotesCount()+1);
-                   currentPost.setUpvotesCount(currentPost.getUpvotesCount()-1);
+                   // increment downvote,decrement upvote
+                   postRepo.incrementDownvoteCount(postId);
+                   postRepo.decrementUpvoteCount(postId);
+
                }
                postVoteRepo.save(postVote.get());
 

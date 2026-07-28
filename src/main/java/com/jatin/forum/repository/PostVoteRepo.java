@@ -34,4 +34,5 @@ public interface PostVoteRepo extends JpaRepository<PostVote, Long> {
 
     @Query("SELECT pv.post.id, SUM(CASE WHEN pv.voteType = 'upvote' THEN 1 ELSE -1 END) FROM PostVote pv WHERE pv.post.id IN :postIds GROUP BY pv.post.id")
     List<Object[]> getAggregateVotesForPosts(@Param("postIds") Collection<Long> postIds);
+
 }

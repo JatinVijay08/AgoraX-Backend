@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -31,6 +32,7 @@ public class CommentVoteService {
         this.currentUserService = currentUserService;
     }
 
+    @Transactional
     public CommentResponse voteOnComment(long commentId, VoteRequest voteRequest) {
         VoteType finalVoteType = voteRequest.voteType();
         User user = currentUserService.getCurrentUser().orElseThrow(() -> new RuntimeException("User not found"));
@@ -42,11 +44,11 @@ public class CommentVoteService {
             CommentVote commentVote1 = new CommentVote(user, currentComment, voteRequest.voteType());
 
             if(voteRequest.voteType().equals(VoteType.upvote)){
-                currentComment.setUpvotes(currentComment.getUpvotes() + 1);
+                commentRepo.incrementUpvoteCount(commentId);
             }
 
             else if(voteRequest.voteType().equals(VoteType.downvote)){
-                currentComment.setDownvotes(currentComment.getDownvotes() + 1);
+                commentRepo.incrementDownvoteCount(commentId);
             }
 
             commentVoteRepo.save(commentVote1);
@@ -55,10 +57,10 @@ public class CommentVoteService {
         } else if (voteRequest.voteType().equals(commentVote.get().getVoteType())) {
 
             if(voteRequest.voteType().equals(VoteType.upvote)){
-                currentComment.setUpvotes(currentComment.getUpvotes() - 1);
+                commentRepo.decrementUpvoteCount(commentId);
             }
             else if(voteRequest.voteType().equals(VoteType.downvote)){
-                currentComment.setDownvotes(currentComment.getDownvotes() - 1);
+                commentRepo.decrementDownvoteCount(commentId);
             }
             commentVoteRepo.delete(commentVote.get());
             commentRepo.save(currentComment);
@@ -68,12 +70,12 @@ public class CommentVoteService {
 
             commentVote.get().setVoteType(voteRequest.voteType());
             if(voteRequest.voteType().equals(VoteType.downvote)){
-                currentComment.setDownvotes(currentComment.getDownvotes() + 1);
-                currentComment.setUpvotes(currentComment.getUpvotes() - 1);
+                commentRepo.incrementDownvoteCount(commentId);
+                commentRepo.decrementUpvoteCount(commentId);
             }
             else if(voteRequest.voteType().equals(VoteType.upvote)){
-                currentComment.setDownvotes(currentComment.getDownvotes() - 1);
-                currentComment.setUpvotes(currentComment.getUpvotes() + 1);
+                commentRepo.incrementUpvoteCount(commentId);
+                commentRepo.decrementDownvoteCount(commentId);
             }
             commentVoteRepo.save(commentVote.get());
         }

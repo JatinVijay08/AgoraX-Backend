@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import com.jatin.forum.exception.ResourceNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -38,6 +39,7 @@ public class CommentService {
         this.notificationService = notificationService;
     }
 
+    @Transactional
     public CommentResponse CreateComment(Long postID, CreateCommentRequest createCommentRequest) {
         User user = currentUserService.getCurrentUser().orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -58,10 +60,7 @@ public class CommentService {
             commentRepo.save(comment);
             notificationService.createCommentNotification(post.get(), user, comment);
         }
-
-        long newCommentCount = post.get().getCommentCount();
-        post.get().setCommentCount(newCommentCount+1);
-        postRepo.save(post.get());
+        postRepo.incrementCommentCount(postID);
 
         // increment trending activity
         long trendingCount = feedCacheService.incrementActivity(FeedCacheService.TYPE_TRENDING);
@@ -73,6 +72,7 @@ public class CommentService {
         return maptoCommentResponse(comment);
     }
 
+    @Transactional
     public void deleteComment(Long commentID) {
         Optional<Comment> comment = commentRepo.findById(commentID);
         User user = currentUserService.getCurrentUser().orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -82,10 +82,8 @@ public class CommentService {
         if(!comment.get().getUser().getEmail().equals(user.getEmail())) {
             throw new AccessDeniedException("You are not allowed to delete this comment");
         }
-        Post post = comment.get().getPost();
-        post.setCommentCount(post.getCommentCount()-1);
-        postRepo.save(post);
         commentRepo.delete(comment.get());
+        postRepo.decrementCommentCount(comment.get().getPost().getId());
 
         feedCacheService.evictFeed(FeedCacheService.TYPE_TRENDING, 10);
         feedCacheService.resetActivity(FeedCacheService.TYPE_TRENDING);

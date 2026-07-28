@@ -30,4 +30,22 @@ public interface CommentRepo extends JpaRepository<Comment, Long> {
     long countByPostAndCreatedAtAfter(com.jatin.forum.entity.Post post, java.time.Instant createdAt);
 
     List<Comment> findCommentsByCreatedAtAfter(Instant createdAtAfter);
+
+    @Modifying
+    @Query("UPDATE Comment c SET c.upvotes = c.upvotes+1 where c.id = :commentId")
+    void incrementUpvoteCount(@Param("commentId")Long commentId);
+
+    @Modifying
+    @Query("UPDATE Comment c SET c.upvotes = c.upvotes-1 where c.id = :commentId")
+    void decrementUpvoteCount(@Param("commentId")Long commentId);
+
+    @Modifying
+    @Query("UPDATE Comment c SET c.downvotes = c.downvotes+1 where c.id = :commentId")
+    void incrementDownvoteCount(@Param("commentId")Long commentId);
+
+    @Modifying
+    @Query("UPDATE Comment c SET c.downvotes = c.downvotes-1 where c.id = :commentId")
+    void decrementDownvoteCount(@Param("commentId")Long commentId);
+
+
 }
