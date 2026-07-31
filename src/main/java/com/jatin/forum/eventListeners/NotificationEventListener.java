@@ -17,7 +17,6 @@ public class NotificationEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleNotificationEvent(NotificationCreatedEvent event) {
-        System.out.println("Notification Event Listener Fired up!!");
         notificationRealtimeService.sendNotification(event.receiverEmail(), event.notificationResponse());
     }
 

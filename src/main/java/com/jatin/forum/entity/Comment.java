@@ -9,6 +9,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Getter
+@Setter
 @Entity
 @Table(name="comments")
 public class Comment {

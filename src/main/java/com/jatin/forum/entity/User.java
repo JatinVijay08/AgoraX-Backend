@@ -10,6 +10,7 @@ import java.time.Instant;
 @Table(name="users")
 @Builder
 @Getter
+@Setter
 @AllArgsConstructor
 public class User {
 
@@ -25,6 +26,8 @@ public class User {
     @Column(nullable=true)
     private String password;
 
+
+    @Setter
     @Column(nullable=false,unique=true)
     private String email;
 
@@ -47,7 +50,7 @@ public class User {
 
 
 
-    protected User() {}
+    public User() {}
 
 
     public String getPassword() {
